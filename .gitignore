@@ -1,10 +1,30 @@
+# Entornos virtuales
 venv/
+.venv/
+env/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.env
-.DS_Store
+*.pyd
 *.egg-info/
+
+# Build / distribución
 dist/
 build/
 .pytest_cache/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+.env.local
+
+# Scripts auxiliares temporales
+_write_*.py
+
+# VS Code
+.vscode/

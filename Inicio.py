@@ -1,12 +1,13 @@
-"""Home page — English introduction and navigation hub."""
+"""Página de inicio — Guía interactiva de reducción de dimensionalidad en español."""
 import streamlit as st
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from sklearn.decomposition import PCA
 from sklearn.datasets import load_iris
 
 st.set_page_config(
-    page_title="Dimensionality Reduction — Interactive Guide",
+    page_title="Reducción de Dimensionalidad — Guía Interactiva",
     page_icon="🔭",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -73,17 +74,16 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-size: .9rem;
 }
 .step-text { color: #D1D5DB; font-size: .95rem; line-height: 1.5; padding-top: .15rem; }
-.compare-table th { color: #6C63FF !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HERO
+# HÉROE
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="hero-title">🔭 Dimensionality Reduction</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-title">🔭 Reducción de Dimensionalidad</p>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-sub">An interactive guide to PCA, t-SNE and UMAP — '
-    'no equations required</p>',
+    '<p class="hero-sub">Guía interactiva de PCA, t-SNE y UMAP — '
+    'sin fórmulas, sin miedo, con ejemplos reales</p>',
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -93,7 +93,7 @@ st.markdown(
     '<span class="badge">🚀 UMAP</span>'
     '<span class="badge">📈 Plotly</span>'
     '<span class="badge">🎛️ Streamlit</span>'
-    '<span class="badge">🆓 Open Source</span>'
+    '<span class="badge">🆓 Código abierto</span>'
     '</div>',
     unsafe_allow_html=True,
 )
@@ -101,70 +101,73 @@ st.markdown(
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WHAT IS IT?  (two columns)
+# ¿QUÉ ES? + DEMO EN VIVO
 # ══════════════════════════════════════════════════════════════════════════════
 col_what, col_live = st.columns([1.1, 1], gap="large")
 
 with col_what:
-    st.markdown('<p class="section-label">The core idea</p>', unsafe_allow_html=True)
-    st.markdown("## What is Dimensionality Reduction?")
+    st.markdown('<p class="section-label">La idea central</p>', unsafe_allow_html=True)
+    st.markdown("## ¿Qué es la reducción de dimensionalidad?")
     st.markdown("""
-Modern datasets are enormous. A single 28×28 grayscale image has **784 dimensions**.
-A gene-expression dataset can have **tens of thousands**. Our brains can only see 3.
+Los datos modernos son enormes. Una imagen en escala de grises de 28×28 píxeles
+tiene **784 dimensiones**. Un dataset genómico puede tener **decenas de miles**.
+Nuestros cerebros sólo pueden visualizar 3.
 
-**Dimensionality reduction** compresses high-dimensional data into 2D or 3D maps
-while preserving the structure that matters most — letting you *see* patterns
-that were completely invisible in a spreadsheet.
+La **reducción de dimensionalidad** comprime datos de alta dimensión en mapas 2D o 3D
+conservando la estructura más importante — permitiéndote *ver* patrones que eran
+completamente invisibles en una hoja de cálculo.
 """)
 
-    # The three everyday analogies
-    analogies = [
+    # Tres analogías cotidianas
+    analogias = [
         ("#6C63FF",
-         "🎒 The Suitcase",
-         "You don't pack your entire house for a trip. You keep only the essentials. "
-         "DR does the same: keeps the most informative features and throws away noise."),
+         "🎒 La maleta de viaje",
+         "No te llevas toda la casa de viaje. Empacas sólo lo esencial. "
+         "La reducción de dimensionalidad hace lo mismo: guarda las características "
+         "más informativas y descarta el ruido."),
         ("#48CAE4",
-         "📷 The Photograph",
-         "A sculpture exists in 3D, but a photo is 2D. A great photographer picks the "
-         "angle that shows the most detail. PCA finds that exact angle for your data."),
+         "📷 La fotografía",
+         "Una escultura existe en 3D, pero la foto es 2D. Un buen fotógrafo elige "
+         "el ángulo que muestra más detalle. PCA encuentra exactamente ese ángulo "
+         "para tus datos."),
         ("#FF6B6B",
-         "🗺️ The City Map",
-         "A map is not the city — it's a 2D compression of 3D reality. "
-         "t-SNE and UMAP build maps like this for your data, minimising distortion."),
+         "🗺️ El mapa de la ciudad",
+         "Un mapa no es la ciudad — es una compresión 2D de la realidad 3D. "
+         "t-SNE y UMAP construyen mapas así para tus datos, minimizando la distorsión."),
     ]
-    for color, title, text in analogies:
+    for color, titulo, texto in analogias:
         st.markdown(
             f'<div class="concept-box" style="border-left-color:{color}">'
-            f'<strong style="color:{color}">{title}</strong>'
-            f'<p style="margin:.4rem 0 0 0;color:#D1D5DB;font-size:.92rem">{text}</p>'
+            f'<strong style="color:{color}">{titulo}</strong>'
+            f'<p style="margin:.4rem 0 0 0;color:#D1D5DB;font-size:.92rem">{texto}</p>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
 with col_live:
-    st.markdown('<p class="section-label">Live preview</p>', unsafe_allow_html=True)
-    st.markdown("## Iris dataset: 4D → 2D with PCA")
+    st.markdown('<p class="section-label">Vista previa en vivo</p>', unsafe_allow_html=True)
+    st.markdown("## Dataset Iris: 4D → 2D con PCA")
     st.markdown(
-        "Below is a real PCA projection of the Iris flower dataset. "
-        "150 flowers described by **4 measurements** compressed into **2 dimensions**. "
-        "Notice how the three species naturally cluster apart."
+        "Abajo tienes una proyección real con PCA del dataset de flores Iris. "
+        "150 flores descritas por **4 medidas** comprimidas en **2 dimensiones**. "
+        "Fíjate cómo las tres especies forman grupos naturales bien separados."
     )
 
-    # ── live mini-demo ─────────────────────────────────────────────────────
+    # ── mini-demo en vivo ──────────────────────────────────────────────────
     iris = load_iris()
     X_scaled = (iris.data - iris.data.mean(axis=0)) / iris.data.std(axis=0)
     pca = PCA(n_components=2, random_state=42)
     Xp = pca.fit_transform(X_scaled)
-    colors = ["#6C63FF", "#48CAE4", "#FF6B6B"]
-    names  = iris.target_names
+    colores = ["#6C63FF", "#48CAE4", "#FF6B6B"]
+    nombres = iris.target_names
 
     fig_home = go.Figure()
-    for i, (name, color) in enumerate(zip(names, colors)):
+    for i, (nombre, color) in enumerate(zip(nombres, colores)):
         mask = iris.target == i
         fig_home.add_trace(go.Scatter(
             x=Xp[mask, 0], y=Xp[mask, 1],
             mode="markers",
-            name=name.capitalize(),
+            name=nombre.capitalize(),
             marker=dict(color=color, size=9, opacity=0.85,
                         line=dict(width=0.5, color="white")),
         ))
@@ -172,44 +175,44 @@ with col_live:
     fig_home.update_layout(
         template="plotly_dark",
         height=340,
-        xaxis_title=f"PC1 — {v[0]*100:.1f}% variance",
-        yaxis_title=f"PC2 — {v[1]*100:.1f}% variance",
+        xaxis_title=f"CP1 — {v[0]*100:.1f}% de varianza",
+        yaxis_title=f"CP2 — {v[1]*100:.1f}% de varianza",
         legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=12)),
         margin=dict(l=30, r=20, t=20, b=40),
     )
     st.plotly_chart(fig_home, use_container_width=True)
     st.caption(
-        f"✅ Just 2 numbers per flower capture "
-        f"**{(v[0]+v[1])*100:.1f}%** of all the information in 4 variables."
+        f"✅ Con sólo 2 números por flor capturamos "
+        f"**{(v[0]+v[1])*100:.1f}%** de toda la información contenida en 4 variables."
     )
 
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WHY DOES IT MATTER
+# ¿POR QUÉ IMPORTA?
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">Why it matters</p>', unsafe_allow_html=True)
-st.markdown("## Three reasons every data scientist needs this")
+st.markdown('<p class="section-label">¿Por qué importa?</p>', unsafe_allow_html=True)
+st.markdown("## Tres razones por las que todo científico de datos necesita esto")
 
 r1, r2, r3 = st.columns(3, gap="medium")
-reasons = [
-    ("👁️", "Visualisation", "#6C63FF",
-     "Turn a 500-column spreadsheet into a 2D scatter plot you can understand "
-     "in seconds. Spot clusters, outliers and trends instantly."),
-    ("⚡", "Speed", "#48CAE4",
-     "Machine Learning models train **10×–100× faster** on compressed data. "
-     "Less dimensions = fewer parameters = less overfitting."),
-    ("🔍", "Discovery", "#FF6B6B",
-     "Uncover hidden groups and relationships that are completely invisible "
-     "in raw high-dimensional tables. Let the data surprise you."),
+razones = [
+    ("👁️", "Visualización", "#6C63FF",
+     "Convierte una hoja de cálculo con 500 columnas en un diagrama 2D que entiendes "
+     "en segundos. Detecta grupos, valores atípicos y tendencias al instante."),
+    ("⚡", "Velocidad", "#48CAE4",
+     "Los modelos de Machine Learning entrenan **10×–100× más rápido** con datos "
+     "comprimidos. Menos dimensiones = menos parámetros = menos sobreajuste."),
+    ("🔍", "Descubrimiento", "#FF6B6B",
+     "Revela grupos y relaciones ocultas que son completamente invisibles en tablas "
+     "de alta dimensión sin procesar. Deja que los datos te sorprendan."),
 ]
-for col, (icon, title, color, text) in zip([r1, r2, r3], reasons):
+for col, (icono, titulo, color, texto) in zip([r1, r2, r3], razones):
     with col:
         st.markdown(
             f'<div class="nav-card" style="border-left: 4px solid {color};">'
-            f'<div class="icon">{icon}</div>'
-            f'<h3 style="color:{color}">{title}</h3>'
-            f'<p>{text}</p>'
+            f'<div class="icon">{icono}</div>'
+            f'<h3 style="color:{color}">{titulo}</h3>'
+            f'<p>{texto}</p>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -217,40 +220,40 @@ for col, (icon, title, color, text) in zip([r1, r2, r3], reasons):
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# NAVIGATION CARDS
+# TARJETAS DE NAVEGACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">Explore the app</p>', unsafe_allow_html=True)
-st.markdown("## Pick a topic and dive in")
+st.markdown('<p class="section-label">Explorar la app</p>', unsafe_allow_html=True)
+st.markdown("## Elige un tema y sumérgete")
 st.markdown(
-    "Use the **sidebar** or click any card below to jump to a section. "
-    "Each page has theory, an interactive demo, and a quiz."
+    "Usa la **barra lateral** o haz clic en cualquier tarjeta para saltar a una sección. "
+    "Cada página incluye teoría, una demo interactiva y un quiz."
 )
 
-pages = [
-    ("🧩", "PCA", "Principal Component Analysis",
-     "The classic. Rotate your data to find the directions of maximum variance. "
-     "Best for speed, reproducibility, and preprocessing ML pipelines.",
-     "Linear", "Fast", "Reproducible", "#6C63FF", "pages/1_🧩_PCA"),
-    ("🌌", "t-SNE", "t-distributed Stochastic Neighbor Embedding",
-     "Place similar points close together in 2D. Reveals hidden clusters "
-     "even in highly non-linear data structures.",
-     "Non-linear", "Best for clusters", "Slow on large data", "#48CAE4", "pages/2_🌌_t-SNE"),
-    ("🚀", "UMAP", "Uniform Manifold Approximation and Projection",
-     "Faster and more scalable than t-SNE. Preserves both local clusters "
-     "AND global structure. Can transform new data.",
-     "Non-linear", "Fast", "Scalable", "#FF6B6B", "pages/3_🚀_UMAP"),
-    ("⚔️", "Compare", "PCA vs t-SNE vs UMAP side by side",
-     "Apply all three algorithms to the same dataset simultaneously "
-     "and see the differences with your own eyes.",
-     "All methods", "Same dataset", "Side by side", "#F59E0B", "pages/4_⚔️_Comparar"),
-    ("🎮", "Playground", "Your personal lab",
-     "Full control over every parameter. Explore freely, "
-     "download results, and read the built-in glossary.",
-     "Any algorithm", "Any dataset", "Free exploration", "#22C55E", "pages/5_🎮_Playground"),
+paginas = [
+    ("🧩", "PCA", "Análisis de Componentes Principales",
+     "El clásico. Rota tus datos para encontrar las direcciones de máxima varianza. "
+     "Ideal para velocidad, reproducibilidad y preprocesamiento de pipelines de ML.",
+     "Lineal", "Muy rápido", "Reproducible", "#6C63FF", "pages/1_🧩_PCA"),
+    ("🌌", "t-SNE", "Inserción Estocástica de Vecinos con t de Student",
+     "Coloca puntos similares cerca en 2D. Revela clústeres ocultos incluso "
+     "en estructuras de datos altamente no lineales.",
+     "No lineal", "Mejor para clústeres", "Lento en datos grandes", "#48CAE4", "pages/2_🌌_t-SNE"),
+    ("🚀", "UMAP", "Aproximación y Proyección de Variedades Uniformes",
+     "Más rápido y escalable que t-SNE. Preserva tanto los clústeres locales "
+     "COMO la estructura global. Puede transformar datos nuevos.",
+     "No lineal", "Rápido", "Escalable", "#FF6B6B", "pages/3_🚀_UMAP"),
+    ("⚔️", "Comparar", "PCA vs t-SNE vs UMAP cara a cara",
+     "Aplica los tres algoritmos al mismo dataset simultáneamente "
+     "y observa las diferencias con tus propios ojos.",
+     "Todos los métodos", "Mismo dataset", "Lado a lado", "#F59E0B", "pages/4_⚔️_Comparar"),
+    ("🎮", "Laboratorio", "Tu laboratorio personal",
+     "Control total sobre cada parámetro. Explora libremente, "
+     "descarga resultados y consulta el glosario integrado.",
+     "Cualquier algoritmo", "Cualquier dataset", "Exploración libre", "#22C55E", "pages/5_🎮_Playground"),
 ]
 
 col_a, col_b = st.columns(2, gap="medium")
-for i, (icon, name, full, desc, t1, t2, t3, color, _) in enumerate(pages):
+for i, (icono, nombre, completo, desc, t1, t2, t3, color, _) in enumerate(paginas):
     tag_html = (
         f'<span class="tag" style="background:{color}22;color:{color}">{t1}</span>'
         f'<span class="tag" style="background:#ffffff11;color:#9CA3AF">{t2}</span>'
@@ -258,63 +261,70 @@ for i, (icon, name, full, desc, t1, t2, t3, color, _) in enumerate(pages):
     )
     card_html = (
         f'<div class="nav-card" style="border-top: 3px solid {color};">'
-        f'<div class="icon">{icon}</div>'
-        f'<h3 style="color:{color}">{name} — <span style="font-weight:400;color:#9CA3AF;font-size:.9rem">{full}</span></h3>'
+        f'<div class="icon">{icono}</div>'
+        f'<h3 style="color:{color}">{nombre} — '
+        f'<span style="font-weight:400;color:#9CA3AF;font-size:.9rem">{completo}</span></h3>'
         f'<p>{desc}</p>'
         f'<div class="tags">{tag_html}</div>'
         f'</div>'
     )
-    target = col_a if i % 2 == 0 else col_b
-    with target:
+    destino = col_a if i % 2 == 0 else col_b
+    with destino:
         st.markdown(card_html, unsafe_allow_html=True)
 
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HOW TO USE THIS APP
+# RUTA DE APRENDIZAJE
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">Getting started</p>', unsafe_allow_html=True)
-st.markdown("## Suggested learning path")
+st.markdown('<p class="section-label">Cómo empezar</p>', unsafe_allow_html=True)
+st.markdown("## Ruta de aprendizaje sugerida")
 
-col_steps, col_datasets = st.columns([1, 1], gap="large")
+col_pasos, col_datos = st.columns([1, 1], gap="large")
 
-with col_steps:
-    steps = [
-        ("Start here", "Read this Home page to understand the big picture."),
-        ("Learn PCA", "Go to 🧩 PCA. Read how it works, then try the demo with the Iris dataset."),
-        ("Learn t-SNE", "Go to 🌌 t-SNE. Adjust the perplexity slider and watch the clusters change."),
-        ("Learn UMAP", "Go to 🚀 UMAP. Compare it mentally with t-SNE — what's different?"),
-        ("Compare all three", "Go to ⚔️ Compare and run all three on the same dataset at once."),
-        ("Experiment freely", "Go to 🎮 Playground. Try every combination. Check the glossary."),
+with col_pasos:
+    pasos = [
+        ("Empieza aquí",
+         "Lee esta página de inicio para entender el panorama general."),
+        ("Aprende PCA",
+         "Ve a 🧩 PCA. Lee cómo funciona y prueba la demo con el dataset Iris."),
+        ("Aprende t-SNE",
+         "Ve a 🌌 t-SNE. Ajusta el deslizador de perplejidad y observa cómo cambian los clústeres."),
+        ("Aprende UMAP",
+         "Ve a 🚀 UMAP. Compáralo mentalmente con t-SNE — ¿qué es diferente?"),
+        ("Compara los tres",
+         "Ve a ⚔️ Comparar y ejecuta los tres en el mismo dataset al mismo tiempo."),
+        ("Experimenta libremente",
+         "Ve a 🎮 Laboratorio. Prueba cada combinación y consulta el glosario."),
     ]
-    for num, (title, text) in enumerate(steps, 1):
+    for num, (titulo, texto) in enumerate(pasos, 1):
         st.markdown(
             f'<div class="step-row">'
             f'<div class="step-num">{num}</div>'
-            f'<div class="step-text"><strong style="color:#E5E7EB">{title}:</strong> {text}</div>'
+            f'<div class="step-text"><strong style="color:#E5E7EB">{titulo}:</strong> {texto}</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
-with col_datasets:
-    st.markdown("### 📊 Datasets available throughout the app")
+with col_datos:
+    st.markdown("### 📊 Datasets disponibles en toda la app")
     datasets = [
-        ("🌸", "Iris", "150 flowers · 4 dimensions · 3 species",
-         "The 'Hello World' of ML. Great for beginners — classes are almost linearly separable.",
+        ("🌸", "Iris", "150 flores · 4 dimensiones · 3 especies",
+         "El 'Hola Mundo' del ML. Ideal para principiantes — las clases son casi linealmente separables.",
          "#6C63FF"),
-        ("🍷", "Wine", "178 wines · 13 dimensions · 3 producers",
-         "Italian wine chemistry. Many correlated variables — PCA shines here.",
+        ("🍷", "Vino", "178 vinos · 13 dimensiones · 3 productores",
+         "Química de vinos italianos. Muchas variables correlacionadas — aquí brilla PCA.",
          "#48CAE4"),
-        ("✏️", "Digits", "1,797 images · 64 dimensions · 10 classes",
-         "Handwritten digits (0–9). t-SNE and UMAP separate all 10 groups perfectly from 64D.",
+        ("✏️", "Dígitos", "1.797 imágenes · 64 dimensiones · 10 clases",
+         "Dígitos escritos a mano (0–9). t-SNE y UMAP separan los 10 grupos perfectamente desde 64D.",
          "#FF6B6B"),
     ]
-    for emoji, name, meta, why, color in datasets:
+    for emoji, nombre, meta, por_que, color in datasets:
         st.markdown(
             f'<div class="concept-box" style="border-left-color:{color};margin-bottom:.7rem">'
-            f'<strong style="color:{color}">{emoji} {name}</strong> '
+            f'<strong style="color:{color}">{emoji} {nombre}</strong> '
             f'<span style="color:#6B7280;font-size:.82rem">{meta}</span>'
-            f'<p style="margin:.35rem 0 0 0;color:#9CA3AF;font-size:.88rem">{why}</p>'
+            f'<p style="margin:.35rem 0 0 0;color:#9CA3AF;font-size:.88rem">{por_que}</p>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -322,28 +332,105 @@ with col_datasets:
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ALGORITHM QUICK REFERENCE
+# TABLA DE REFERENCIA RÁPIDA
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">Quick reference</p>', unsafe_allow_html=True)
-st.markdown("## Algorithm cheat sheet")
+st.markdown('<p class="section-label">Referencia rápida</p>', unsafe_allow_html=True)
+st.markdown("## Tabla comparativa de algoritmos")
 
-import pandas as pd
 df_ref = pd.DataFrame({
-    "": ["Type", "Speed", "Preserves global structure", "Preserves local structure",
-         "Can transform new data", "Best for", "Main parameter"],
-    "🧩 PCA": ["Linear", "⚡⚡⚡ Very fast", "✅ Yes", "⚠️ Partially",
-               "✅ Yes", "Preprocessing, fast viz", "n_components"],
-    "🌌 t-SNE": ["Non-linear", "🐢 Slow", "⚠️ Often lost", "✅✅ Excellent",
-                 "❌ No", "Cluster visualisation", "perplexity"],
-    "🚀 UMAP": ["Non-linear", "⚡⚡ Fast", "✅ Yes", "✅✅ Very good",
-                "✅ Yes", "Large datasets, pipelines", "n_neighbors, min_dist"],
+    "Característica": [
+        "Tipo", "Velocidad", "Preserva estructura global",
+        "Preserva estructura local", "Transforma datos nuevos",
+        "Mejor para", "Parámetro principal",
+    ],
+    "🧩 PCA": [
+        "Lineal", "⚡⚡⚡ Muy rápido", "✅ Sí", "⚠️ Parcialmente",
+        "✅ Sí", "Preprocesamiento, viz rápida", "n_components",
+    ],
+    "🌌 t-SNE": [
+        "No lineal", "🐢 Lento", "⚠️ A menudo perdida", "✅✅ Excelente",
+        "❌ No", "Visualización de clústeres", "perplexity",
+    ],
+    "🚀 UMAP": [
+        "No lineal", "⚡⚡ Rápido", "✅ Sí", "✅✅ Muy buena",
+        "✅ Sí", "Datasets grandes, pipelines", "n_neighbors, min_dist",
+    ],
 })
 st.dataframe(df_ref, use_container_width=True, hide_index=True)
 
 st.divider()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# QUIZ DE REFLEXIÓN
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<p class="section-label">Reflexión inicial</p>', unsafe_allow_html=True)
+st.markdown("## ¿Ya tienes una idea base?")
+
+col_q1, col_q2 = st.columns(2, gap="large")
+
+with col_q1:
+    respuesta = st.radio(
+        "Si tienes un dataset con 500 columnas y quieres visualizarlo rápidamente "
+        "sin perder demasiada información, ¿qué técnica usarías primero?",
+        [
+            "t-SNE — porque revela clústeres muy bien",
+            "PCA — porque es rápido y reproducible ✅",
+            "UMAP — porque es el más moderno",
+            "Ninguna, usaría todas las 500 columnas directamente",
+        ],
+        index=None,
+        key="quiz_home",
+    )
+    if respuesta is not None:
+        if "PCA" in respuesta:
+            st.success(
+                "🎉 ¡Correcto! PCA es la opción ideal para una primera exploración rápida. "
+                "Es determinista, muy veloz y explica cuánta varianza conserva cada componente."
+            )
+        elif "Ninguna" in respuesta:
+            st.error(
+                "❌ Con 500 columnas es imposible visualizar nada directamente. "
+                "La reducción de dimensionalidad es exactamente la solución a este problema."
+            )
+        else:
+            st.warning(
+                "⚠️ No está mal pensar en t-SNE o UMAP, pero para un primer vistazo rápido "
+                "PCA es mejor: es más rápido, reproducible y fácil de interpretar. "
+                "Guarda t-SNE/UMAP para cuando necesites explorar la estructura de clústeres."
+            )
+
+with col_q2:
+    st.markdown(
+        '<div class="concept-box" style="border-left-color:#6C63FF;">'
+        '<strong style="color:#6C63FF">💡 Consejo para empezar</strong>'
+        '<p style="margin:.5rem 0 0 0;color:#D1D5DB;font-size:.93rem">'
+        'No necesitas saber matemáticas avanzadas para usar esta app. '
+        'Cada página explica los conceptos con analogías cotidianas, '
+        'visualizaciones interactivas y preguntas de reflexión.<br><br>'
+        'Empieza siempre por <strong style="color:#6C63FF">🧩 PCA</strong> — '
+        'es el algoritmo más sencillo y el mejor punto de partida para '
+        'entender la idea general.'
+        '</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="concept-box" style="border-left-color:#48CAE4;">'
+        '<strong style="color:#48CAE4">🧭 ¿Qué encontrarás en cada página?</strong>'
+        '<p style="margin:.5rem 0 0 0;color:#D1D5DB;font-size:.93rem">'
+        '📖 <strong>Teoría visual</strong> — explicaciones con analogías y diagramas<br>'
+        '🎛️ <strong>Demo interactiva</strong> — ajusta parámetros y ve el resultado<br>'
+        '📊 <strong>Métricas</strong> — entiende qué tan buena es la proyección<br>'
+        '❓ <strong>Quiz</strong> — comprueba lo que aprendiste'
+        '</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+st.divider()
 st.markdown(
     "<p style='text-align:center;color:#4B5563;font-size:.88rem'>"
-    "Built with ❤️ using Python · Streamlit · scikit-learn · UMAP-learn · Plotly"
+    "Construido con ❤️ usando Python · Streamlit · scikit-learn · UMAP-learn · Plotly"
     "</p>",
     unsafe_allow_html=True,
 )

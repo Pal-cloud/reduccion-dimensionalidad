@@ -1,6 +1,8 @@
-"""Página t-SNE — explicación interactiva."""
+"""Página t-SNE — explicación interactiva y visual en español."""
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import streamlit as st
 import sys, os
 
@@ -11,473 +13,501 @@ st.set_page_config(page_title="t-SNE", page_icon="🌌", layout="wide")
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .section-label { font-size:.75rem; font-weight:700; letter-spacing:.1em;
-    text-transform:uppercase; color:#48CAE4; margin-bottom:.2rem; }
-.concept-box { background:#1E1E2E; border-radius:10px; padding:1rem 1.2rem;
-    border-left:4px solid; margin-bottom:.8rem; }
-.step-block { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
-.step-num { background:#48CAE4; color:#000; font-weight:800; border-radius:50%;
-    width:2rem; height:2rem; min-width:2rem;
-    display:flex; align-items:center; justify-content:center; font-size:.9rem; }
-.step-body { color:#D1D5DB; font-size:.93rem; line-height:1.55; padding-top:.1rem; }
+    text-transform:uppercase; color:#38BDF8; margin-bottom:.2rem; }
+.step-block { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1.1rem; }
+.step-num { background:#38BDF8; color:#0f172a; font-weight:800; border-radius:50%;
+    width:2.2rem; height:2.2rem; min-width:2.2rem;
+    display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+.step-body { color:#D1D5DB; font-size:.94rem; line-height:1.6; padding-top:.15rem; }
 .callout-green  { background:#052e16; border:1px solid #16a34a; border-radius:8px;
     padding:.9rem 1.1rem; color:#86efac; font-size:.93rem; margin-bottom:.6rem; }
 .callout-yellow { background:#1c1700; border:1px solid #ca8a04; border-radius:8px;
     padding:.9rem 1.1rem; color:#fde047; font-size:.93rem; margin-bottom:.6rem; }
-.callout-red    { background:#2d0a0a; border:1px solid #dc2626; border-radius:8px;
+.callout-red    { background:#1c0505; border:1px solid #dc2626; border-radius:8px;
     padding:.9rem 1.1rem; color:#fca5a5; font-size:.93rem; margin-bottom:.6rem; }
-.perp-row { display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; }
-.perp-badge { border-radius:6px; padding:.3rem .7rem; font-size:.82rem;
-    font-weight:600; white-space:nowrap; }
+.callout-blue   { background:#0c1a2e; border:1px solid #2563eb; border-radius:8px;
+    padding:.9rem 1.1rem; color:#93c5fd; font-size:.93rem; margin-bottom:.6rem; }
+.big-metric { background:#1E1E2E; border-radius:12px; padding:1.2rem;
+    text-align:center; border:1px solid #374151; }
+.big-metric .val { font-size:2.5rem; font-weight:800; color:#38BDF8; }
+.big-metric .lbl { font-size:.85rem; color:#9CA3AF; margin-top:.2rem; }
+.perp-card { background:#1E1E2E; border-radius:10px; padding:1rem;
+    border-left:4px solid; text-align:center; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("# 🌌 t-SNE — Visualising Hidden Clusters")
+st.markdown("# 🌌 t-SNE — t-distributed Stochastic Neighbor Embedding")
 st.markdown(
-    "> *Like seating guests at a wedding: place people who know each other together, "
-    "and strangers far apart. The social groups emerge by themselves.*"
+    "> *Como organizar una fiesta enorme: sienta juntas a las personas que se parecen "
+    "y así los grupos naturales emergen solos.*"
 )
 
-tab1, tab2, tab3 = st.tabs(["📖 How it works", "🎯 Interactive demo", "🧠 Quiz"])
+tab1, tab2, tab3 = st.tabs([
+    "📖 ¿Cómo funciona?",
+    "🎯 Demo interactiva",
+    "🧠 Quiz",
+])
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TAB 1 — TEORÍA
+# ══════════════════════════════════════════════════════════════════════════════
 with tab1:
-    st.markdown('<p class="section-label">Conceptual foundation</p>', unsafe_allow_html=True)
-    st.markdown("## The idea behind t-SNE")
+    st.markdown('<p class="section-label">Fundamento conceptual</p>', unsafe_allow_html=True)
+    st.markdown("## ¿Qué hace t-SNE exactamente?")
 
-    col1, col2 = st.columns([1.1, 1], gap="large")
-    with col1:
+    col_text, col_plot = st.columns([1, 1], gap="large")
+
+    with col_text:
         st.markdown("""
-### Why PCA is not always enough
+Imagina que tienes una fiesta con **500 invitados** que no se conocen entre sí.
+Tu misión: colocarlos en el salón de forma que las personas similares queden cerca.
 
-PCA is **linear** — it can only rotate and stretch the data space.
-But many real datasets live on **curved surfaces** hidden inside high-dimensional space:
-think of a spiral, a sphere, or a Swiss roll.
+Mides qué tan parecidos son (misma ciudad, mismo trabajo, mismos gustos) y los distribuyes
+en el espacio. Al final, sin que nadie te lo dijera, emergen **grupos naturales** visibles.
 
-When PCA tries to flatten a spiral into 2D, it overlaps all the loops.
-t-SNE can **unfold** it correctly.
+Eso es t-SNE: mide similitudes en alta dimensión y redistribuye los puntos en 2D
+para que esos grupos queden a la vista.
 
-### The core idea in plain English
-
-Think of each data point as a person at a huge party.
-t-SNE measures **how well two people know each other** (their similarity in high-D space),
-then rearranges everyone in a room (2D map) so that:
-- Good friends → placed close together
-- Strangers → pushed far apart
-
-It does this thousands of times, nudging everyone slightly, until the arrangement
-is as consistent as possible with the original friendships.
+> **La diferencia clave con PCA:**  
+> PCA busca *la mejor proyección lineal*. t-SNE se toma el tiempo de *aprender*
+> la estructura local de los datos — aunque sea curva o no lineal.
 """)
 
-        st.markdown("### The 3-step algorithm")
-        steps = [
-            ("Measure similarities in high-D",
-             "For each point, compute the probability that every other point is its 'neighbour'. "
-             "Uses a <strong>Gaussian bell curve</strong>: nearby points get high probability, "
-             "distant points get near-zero. The <em>perplexity</em> parameter controls "
-             "how wide the bell is — wider bell = more neighbours considered."),
-            ("Place points randomly in 2D",
-             "All points start at random positions in a 2D plane. "
-             "This is the initial noisy map that will be refined."),
-            ("Iterative optimisation",
-             "At each step, compute similarities in the 2D map using a "
-             "<strong>t-Student distribution</strong> (heavier tails than Gaussian). "
-             "Compare 2D similarities vs high-D similarities. "
-             "Move points to reduce the mismatch. Repeat 250–2000 times. "
-             "The t-Student tails push clusters farther apart, creating clean separations."),
+        st.markdown("### 🪜 El algoritmo en 3 pasos")
+        pasos = [
+            ("Alta dimensión — medir similitudes",
+             "Para cada punto, calcula la probabilidad de que cada vecino sea realmente cercano. "
+             "Usa una **campana de Gauss**: vecinos muy cercanos → probabilidad ≈ 1. "
+             "Puntos lejanos → probabilidad ≈ 0. "
+             "La **perplejidad** controla qué tan amplia es esa campana."),
+            ("Baja dimensión — inicio aleatorio",
+             "Coloca todos los puntos en posiciones aleatorias en un plano 2D. "
+             "Esto es el punto de partida, no el resultado. "
+             "Las probabilidades de vecindad en 2D también se calculan, pero con "
+             "una **distribución t de Student** (colas más gruesas que la Gaussiana)."),
+            ("Optimización — acercar lo similar, alejar lo distinto",
+             "Mueve los puntos iterativamente para que las probabilidades de vecindad en 2D "
+             "se parezcan lo más posible a las de alta dimensión. "
+             "Este proceso se repite **cientos o miles de veces** usando gradiente descendente. "
+             "El resultado: clusters bien separados y compactos."),
         ]
-        for i, (title, body) in enumerate(steps, 1):
+        for i, (titulo, cuerpo) in enumerate(pasos, 1):
             st.markdown(
                 f'<div class="step-block">'
                 f'<div class="step-num">{i}</div>'
-                f'<div class="step-body"><strong style="color:#E5E7EB">{title}</strong>'
-                f'<br>{body}</div></div>',
+                f'<div class="step-body"><strong style="color:#E5E7EB">{titulo}</strong>'
+                f'<br>{cuerpo}</div></div>',
                 unsafe_allow_html=True,
             )
 
         st.markdown(
-            '<div class="callout-green">✅ <strong>What t-SNE is great at:</strong> '
-            'Revealing tight, well-separated clusters in data with complex non-linear structure. '
-            'Often produces the most visually compelling 2D maps.</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="callout-red">🚫 <strong>Critical warning:</strong> '
-            'Distances <em>between</em> clusters in a t-SNE plot are <strong>NOT meaningful</strong>. '
-            'Two clusters being close or far on the map says nothing about how similar they '
-            'actually are. Only the <em>tightness</em> within a cluster matters.</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="callout-yellow">⚠️ <strong>Limitation:</strong> '
-            't-SNE cannot transform new data points. '
-            'Every run on a new dataset starts from scratch. '
-            'For ML pipelines, use UMAP instead.</div>',
-            unsafe_allow_html=True,
-        )
+            '<div class="callout-yellow">⚠️ <strong>Trampa frecuente:</strong> '
+            'Las distancias <em>entre</em> clusters en t-SNE <strong>no son interpretables</strong>. '
+            'Que dos grupos estén cerca o lejos en el mapa 2D no dice nada sobre '
+            'si son parecidos entre sí. Sólo la distancia <em>dentro</em> de un cluster tiene sentido.'
+            '</div>', unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("### 🎚️ Perplexity — the most important parameter")
         st.markdown(
-            "Perplexity roughly equals the number of **effective neighbours** "
-            "each point considers. It is the single most impactful parameter in t-SNE."
-        )
+            '<div class="callout-red">🚫 <strong>No uses t-SNE para:</strong> '
+            'reducción previa al entrenamiento de un modelo ML, ni para datasets '
+            'de más de ~50.000 filas. Es un método de <em>visualización</em>, no de '
+            '<em>transformación</em>.</div>', unsafe_allow_html=True)
 
-        perp_examples = [
-            ("#FF6B6B", "Perplexity 5", "Each point only looks at its 5 nearest neighbours. "
-             "Result: many tiny, isolated micro-clusters. "
-             "Good for spotting very fine-grained sub-groups."),
-            ("#F59E0B", "Perplexity 15", "Moderate local focus. "
-             "Clusters are more coherent but might split large groups into sub-groups."),
-            ("#48CAE4", "Perplexity 30 ← recommended", "Balance between local structure "
-             "(tight clusters) and global awareness. Good starting point for most datasets."),
-            ("#6C63FF", "Perplexity 80+", "Each point sees a large neighbourhood. "
-             "Clusters become bigger and more spread out. "
-             "Useful for understanding the global layout, but local detail is lost."),
-        ]
-        for color, label, desc in perp_examples:
+    with col_plot:
+        st.markdown("### 🌀 Datos que PCA no puede separar — pero t-SNE sí")
+        st.markdown(
+            "Este ejemplo muestra una **espiral doble** (datos no lineales). "
+            "PCA sólo puede hacer cortes rectos: mezcla las dos espirales. "
+            "t-SNE detecta la estructura curva y las separa."
+        )
+        np.random.seed(42)
+        n_pts = 200
+        t_vals = np.linspace(0, 4 * np.pi, n_pts)
+        noise = 0.25
+        X_s1 = np.column_stack([
+            t_vals * np.cos(t_vals) + np.random.randn(n_pts) * noise,
+            t_vals * np.sin(t_vals) + np.random.randn(n_pts) * noise,
+        ])
+        X_s2 = np.column_stack([
+            -t_vals * np.cos(t_vals) + np.random.randn(n_pts) * noise,
+            -t_vals * np.sin(t_vals) + np.random.randn(n_pts) * noise,
+        ])
+        X_spiral = np.vstack([X_s1, X_s2])
+        y_spiral = np.array(["Espiral A"] * n_pts + ["Espiral B"] * n_pts)
+
+        fig_spiral = go.Figure()
+        fig_spiral.add_trace(go.Scatter(
+            x=X_s1[:, 0], y=X_s1[:, 1], mode="markers",
+            marker=dict(color="#38BDF8", size=5, opacity=0.7),
+            name="Espiral A"))
+        fig_spiral.add_trace(go.Scatter(
+            x=X_s2[:, 0], y=X_s2[:, 1], mode="markers",
+            marker=dict(color="#F472B6", size=5, opacity=0.7),
+            name="Espiral B"))
+        fig_spiral.update_layout(
+            template="plotly_dark", height=270,
+            title="Espacio original (2D)", title_font_size=13,
+            margin=dict(l=20, r=20, t=40, b=20),
+            legend=dict(bgcolor="rgba(0,0,0,0.3)"))
+        st.plotly_chart(fig_spiral, use_container_width=True)
+
+        st.markdown(
+            '<div class="callout-blue">💡 En un dataset real de alta dimensión, '
+            'los datos pueden tener esta misma estructura curva y t-SNE la detecta. '
+            'PCA simplemente la "aplana" y pierde esa información.</div>',
+            unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Perplejidad explicada visualmente ─────────────────────────────────
+    st.markdown("## 🎛️ El parámetro estrella: la Perplejidad")
+    st.markdown(
+        "La **perplejidad** es el parámetro más importante de t-SNE. "
+        "Controla cuántos vecinos considera cada punto al medir similitudes."
+    )
+
+    c1, c2, c3 = st.columns(3)
+    cards = [
+        ("#3B1F5E", "#A78BFA", "Perplejidad baja (5–10)",
+         "Cada punto sólo mira a sus 5–10 vecinos más cercanos.",
+         "Resultado: muchos clusters pequeños y muy aislados. "
+         "Puede crear estructuras falsas que no existen en los datos."),
+        ("#0c2a1a", "#34D399", "Perplejidad media (30)",
+         "Balance entre vecindad local y estructura global.",
+         "✅ El valor recomendado para la mayoría de datasets. "
+         "Los clusters emergen con un tamaño natural."),
+        ("#1c0a00", "#FB923C", "Perplejidad alta (80–100)",
+         "Cada punto considera hasta 100 vecinos.",
+         "Resultado: clusters más grandes y conectados. "
+         "Puede 'fundir' grupos que en realidad son distintos."),
+    ]
+    for col, (bg, color, titulo, desc1, desc2) in zip([c1, c2, c3], cards):
+        with col:
             st.markdown(
-                f'<div class="concept-box" style="border-left-color:{color}">'
-                f'<span class="perp-badge" style="background:{color}33;color:{color}">{label}</span>'
-                f'<p style="margin:.4rem 0 0;color:#D1D5DB;font-size:.88rem">{desc}</p>'
+                f'<div style="background:{bg};border-radius:10px;padding:1rem;'
+                f'border-left:4px solid {color};height:100%">'
+                f'<p style="color:{color};font-weight:700;margin-bottom:.4rem">{titulo}</p>'
+                f'<p style="color:#D1D5DB;font-size:.88rem;margin-bottom:.4rem">{desc1}</p>'
+                f'<p style="color:#9CA3AF;font-size:.85rem">{desc2}</p>'
                 f'</div>',
-                unsafe_allow_html=True,
-            )
+                unsafe_allow_html=True)
 
-        st.markdown("### 📐 Why t-Student instead of Gaussian?")
-        # Mini chart comparing Gaussian vs t-Student tails
-        x = np.linspace(-5, 5, 300)
-        gauss = np.exp(-x**2 / 2) / np.sqrt(2 * np.pi)
-        t_dist = (1 + x**2) ** (-1)  # simplified t(1)
-        t_dist = t_dist / t_dist.max() * gauss.max()
+    st.divider()
 
-        fig_dists = go.Figure()
-        fig_dists.add_trace(go.Scatter(x=x, y=gauss, name="Gaussian (high-D)",
-                                       line=dict(color="#6C63FF", width=2.5)))
-        fig_dists.add_trace(go.Scatter(x=x, y=t_dist, name="t-Student (2D map)",
-                                       line=dict(color="#FF6B6B", width=2.5, dash="dot")))
-        fig_dists.update_layout(
-            template="plotly_dark", height=220,
-            margin=dict(l=20, r=10, t=10, b=30),
-            legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=11)),
-            yaxis_title="Density", xaxis_title="Distance",
-        )
-        st.plotly_chart(fig_dists, use_container_width=True)
-        st.caption(
-            "The t-Student has **heavier tails** — distant points in 2D are allowed to be "
-            "even further apart, which **pushes clusters apart** and creates cleaner maps."
-        )
-
-        st.markdown("### ⏱️ Iterations matter")
+    # ── Por qué distribución t de Student ─────────────────────────────────
+    st.markdown("## 📐 ¿Por qué usar distribución t de Student en 2D?")
+    col_t1, col_t2 = st.columns([1, 1.2])
+    with col_t1:
         st.markdown("""
-| Iterations | Effect |
-|-----------|--------|
-| 250 | Very rough map, clusters barely visible |
-| 500 | Clusters start to form |
-| 1000 | Good quality, recommended default |
-| 2000+ | Minor refinement, diminishing returns |
+Esta es la razón del nombre "**t**-SNE" y es una elección brillante.
 
-Run with **at least 1000 iterations** before drawing conclusions.
+En alta dimensión usamos una campana de Gauss (estrecha). En 2D usamos una
+distribución **t de Student con 1 grado de libertad** (colas mucho más largas).
+
+**¿Por qué importa esto?**
+
+En alta dimensión, muchos puntos pueden ser "vecinos moderados" de un punto central.
+En 2D, el espacio es mucho más pequeño y esos puntos no caben todos cerca.
+
+La distribución t con colas gruesas resuelve esto:
+- Permite que los puntos **lejanos se separen MÁS** → clusters bien diferenciados
+- Evita que todos los puntos colapsen en el centro
+- Genera esas hermosas estructuras de "islas" en los plots de t-SNE
+""")
+        st.markdown(
+            '<div class="callout-green">✅ <strong>Resultado:</strong> '
+            'Los clusters en t-SNE son más compactos y mejor separados que '
+            'si usáramos Gauss en ambas dimensiones.</div>', unsafe_allow_html=True)
+
+    with col_t2:
+        x_dist = np.linspace(-5, 5, 300)
+        from scipy.stats import norm, t as t_dist
+        y_gauss = norm.pdf(x_dist, 0, 1)
+        y_t = t_dist.pdf(x_dist, df=1)
+
+        fig_dist = go.Figure()
+        fig_dist.add_trace(go.Scatter(
+            x=x_dist, y=y_gauss, mode="lines", name="Gauss (alta dimensión)",
+            line=dict(color="#38BDF8", width=3)))
+        fig_dist.add_trace(go.Scatter(
+            x=x_dist, y=y_t, mode="lines", name="t de Student (2D en t-SNE)",
+            line=dict(color="#F472B6", width=3)))
+        fig_dist.add_annotation(
+            x=2.5, y=0.08, text="Colas más gruesas<br>→ mejor separación",
+            font=dict(color="#F472B6", size=11),
+            showarrow=True, arrowcolor="#F472B6", ax=40, ay=-40)
+        fig_dist.update_layout(
+            template="plotly_dark", height=280,
+            title="Gauss vs t de Student",
+            xaxis_title="Distancia", yaxis_title="Probabilidad",
+            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
+            margin=dict(l=20, r=20, t=40, b=30))
+        st.plotly_chart(fig_dist, use_container_width=True)
+
+    st.divider()
+
+    # ── Cuándo usar ────────────────────────────────────────────────────────
+    st.markdown("## ✅❌ ¿Cuándo usar t-SNE?")
+    col_si, col_no = st.columns(2)
+    with col_si:
+        st.markdown("### ✅ Úsalo cuando...")
+        st.markdown("""
+- Quieres **visualizar** si existen grupos naturales en tus datos
+- Tienes un dataset de **tamaño medio** (hasta ~50.000 filas)
+- Quieres verificar que un **algoritmo de clustering** tiene sentido
+- Trabajas en **bioinformática** (scRNA-seq, proteómica)
+- Quieres una visualización **impactante** para una presentación
+""")
+    with col_no:
+        st.markdown("### ❌ No lo uses cuando...")
+        st.markdown("""
+- Necesitas **transformar datos nuevos** (t-SNE no tiene `.transform()`)
+- Tu dataset tiene más de **50.000 filas** (demasiado lento)
+- Quieres una reducción **antes de entrenar** un modelo ML
+- Necesitas que las **distancias entre clusters** sean interpretables
+- Necesitas **reproducibilidad perfecta** sin fijar semillas
 """)
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 2 — DEMO INTERACTIVA
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
-    st.markdown('<p class="section-label">Hands-on</p>', unsafe_allow_html=True)
-    st.markdown("## 🎯 Experiment with t-SNE")
-    st.markdown("⏱️ *t-SNE can take a few seconds — it's an iterative optimisation algorithm.*")
+    st.markdown('<p class="section-label">Manos a la obra</p>', unsafe_allow_html=True)
+    st.markdown("## 🎯 Prueba t-SNE con datos reales")
 
-    col_cfg, col_plot = st.columns([1, 2])
+    col_cfg, col_plot = st.columns([1, 2.2])
     with col_cfg:
         dataset_name = st.selectbox("Dataset", ["Iris 🌸", "Vino 🍷", "Dígitos ✏️"], key="tsne_ds")
-        perplexity = st.slider("Perplexity", min_value=5, max_value=100, value=30, step=5, key="tsne_perp")
-        n_iter = st.select_slider("Iterations", options=[250, 500, 750, 1000, 2000], value=1000, key="tsne_iter")
-        run_btn = st.button("▶️ Run t-SNE", type="primary", key="tsne_run")
+        perplexity = st.slider("Perplejidad", 5, 80, 30, 5, key="tsne_perp")
+        n_iter = st.slider("Iteraciones", 250, 1000, 500, 250, key="tsne_iter")
         st.markdown("---")
         st.markdown("""
-**💡 Experiments to try:**
-- Set perplexity to **5** → notice the tiny isolated clusters
-- Set perplexity to **80** → notice how clusters merge
-- Use **Digits ✏️** → can t-SNE separate all 10 digits from 64 pixels?
-- Run twice with the same settings → results change slightly (stochastic)
+**💡 Qué observar:**
+- Aumenta la perplejidad: ¿los clusters se fusionan?
+- Bájala a 5: ¿aparecen estructuras falsas?
+- Prueba con Dígitos: ¿separa los 10 números desde 64D?
+- ¿Ves grupos que se solapan? t-SNE los respeta.
 """)
+        st.markdown(
+            '<div class="callout-yellow">⚠️ t-SNE puede tardar unos segundos '
+            'en datasets grandes. Los resultados cambian ligeramente cada vez '
+            'por el inicio aleatorio.</div>', unsafe_allow_html=True)
 
-    X, y, _, desc = load_dataset(dataset_name)
+    X, y, df_orig, desc = load_dataset(dataset_name)
     st.info(desc)
 
-    if (run_btn
-            or "tsne_result" not in st.session_state
-            or st.session_state.get("tsne_cfg") != (dataset_name, perplexity, n_iter)):
-        with st.spinner("Running t-SNE… ⏳"):
-            if dataset_name == "Dígitos ✏️" and X.shape[0] > 500:
-                idx = np.random.RandomState(42).choice(X.shape[0], 500, replace=False)
-                X_use, y_use = X[idx], y[idx]
-            else:
-                X_use, y_use = X, y
-            X_tsne = apply_tsne(X_use, perplexity=perplexity, n_iter=n_iter)
-            st.session_state["tsne_result"] = (X_tsne, y_use)
-            st.session_state["tsne_cfg"] = (dataset_name, perplexity, n_iter)
-
-    X_tsne, y_use = st.session_state["tsne_result"]
     with col_plot:
-        fig = scatter_2d(X_tsne, y_use,
-                         title=f"t-SNE — {dataset_name}  (perplexity={perplexity}, iter={n_iter})")
-        st.plotly_chart(fig, use_container_width=True)
+        with st.spinner("🔄 Ejecutando t-SNE... (puede tardar unos segundos)"):
+            X_tsne = apply_tsne(X, perplexity=perplexity, n_iter=n_iter)
 
-    st.markdown("### 💬 What do you observe?")
-    col_obs1, col_obs2 = st.columns(2)
-    with col_obs1:
-        st.markdown("""
-**Questions to ask yourself:**
-- Are the classes separated into distinct islands?
-- Are there any classes that overlap or mix?
-- Do some classes form multiple sub-clusters?
+        fig_tsne = scatter_2d(
+            X_tsne, y,
+            title=f"t-SNE — {dataset_name} (perp={perplexity}, iter={n_iter})",
+            x_label="Dimensión t-SNE 1",
+            y_label="Dimensión t-SNE 2")
+        st.plotly_chart(fig_tsne, use_container_width=True)
+
+        n_clusters = len(np.unique(y))
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("Dimensiones originales", X.shape[1])
+        col_m2.metric("Dimensiones reducidas", 2)
+        col_m3.metric("Clases en el dataset", n_clusters)
+
+    st.divider()
+
+    # ── Comparativa de perplejidades ───────────────────────────────────────
+    st.markdown("## 📊 ¿Cómo cambia el resultado con la perplejidad?")
+    st.markdown(
+        "Compara el mismo dataset con **tres perplejidades distintas** lado a lado. "
+        "Observa cómo la estructura cambia radicalmente."
+    )
+
+    ds_comp = st.selectbox("Dataset para comparar", ["Iris 🌸", "Vino 🍷"], key="tsne_comp_ds")
+    X_c, y_c, _, _ = load_dataset(ds_comp)
+
+    if st.button("🔄 Generar comparativa de perplejidades", key="tsne_comp_btn"):
+        perp_vals = [5, 30, 80]
+        cols_comp = st.columns(3)
+        for col, pv in zip(cols_comp, perp_vals):
+            with col:
+                with st.spinner(f"Calculando perp={pv}..."):
+                    Xr = apply_tsne(X_c, perplexity=pv, n_iter=500)
+                fig_c = scatter_2d(Xr, y_c, title=f"Perplejidad = {pv}",
+                                   x_label="Dim 1", y_label="Dim 2")
+                fig_c.update_layout(height=300, showlegend=False,
+                                    margin=dict(l=10, r=10, t=40, b=20))
+                st.plotly_chart(fig_c, use_container_width=True)
+                if pv == 5:
+                    st.caption("⚠️ Muchos clusters pequeños — posibles artefactos")
+                elif pv == 30:
+                    st.caption("✅ Balance óptimo — recomendado")
+                else:
+                    st.caption("⚠️ Clusters grandes — puede perder detalle local")
+    else:
+        st.info("👆 Pulsa el botón para generar la comparativa (tarda ~20 segundos)")
+
+    st.divider()
+
+    # ── Métricas de calidad ───────────────────────────────────────────────
+    st.markdown("## 📏 ¿Qué tan buena es la reducción?")
+    st.markdown("""
+A diferencia de PCA, t-SNE no tiene una métrica directa de "varianza explicada".
+Pero podemos evaluar la calidad de forma indirecta:
 """)
-    with col_obs2:
-        st.markdown("""
-**Remember:**
-- Cluster *size* and *distance between clusters* are NOT meaningful in t-SNE
-- Only cluster *tightness* and *separation* matter
-- Different runs give different layouts (but similar cluster structure)
-""")
+
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.model_selection import cross_val_score
+
+    col_q1, col_q2 = st.columns(2)
+    with col_q1:
+        st.markdown("### 🎯 Preservación de vecindad")
+        st.markdown(
+            "Calculamos un clasificador KNN en el espacio reducido. "
+            "Si t-SNE ha preservado bien la estructura, KNN funcionará bien."
+        )
+        try:
+            knn = KNeighborsClassifier(n_neighbors=5)
+            y_num = np.array([list(np.unique(y)).index(yi) for yi in y])
+            scores = cross_val_score(knn, X_tsne, y_num, cv=5, scoring="accuracy")
+            acc = scores.mean() * 100
+            st.markdown(
+                f'<div class="big-metric"><div class="val">{acc:.1f}%</div>'
+                f'<div class="lbl">Precisión KNN-5 en espacio reducido (CV-5)</div></div>',
+                unsafe_allow_html=True)
+            if acc >= 90:
+                st.success("✅ Excelente preservación de la estructura de clases")
+            elif acc >= 70:
+                st.info("👍 Buena preservación — clusters bien formados")
+            else:
+                st.warning("⚠️ Prueba ajustando la perplejidad")
+        except Exception as e:
+            st.error(f"Error calculando métricas: {e}")
+
+    with col_q2:
+        st.markdown("### 📊 Compacidad de clusters")
+        st.markdown(
+            "Medimos la distancia media intra-cluster vs inter-cluster. "
+            "Un buen embedding tiene clusters compactos y bien separados."
+        )
+        try:
+            unique_labels = np.unique(y)
+            intra_dists = []
+            centroids = []
+            for lbl in unique_labels:
+                pts = X_tsne[y == lbl]
+                centroid = pts.mean(axis=0)
+                centroids.append(centroid)
+                intra_dists.append(np.mean(np.linalg.norm(pts - centroid, axis=1)))
+
+            centroids = np.array(centroids)
+            inter_dist = 0.0
+            count = 0
+            for i in range(len(centroids)):
+                for j in range(i + 1, len(centroids)):
+                    inter_dist += np.linalg.norm(centroids[i] - centroids[j])
+                    count += 1
+            inter_dist /= max(count, 1)
+            silhouette_proxy = (inter_dist - np.mean(intra_dists)) / max(inter_dist, 1e-9)
+
+            col_m1, col_m2 = st.columns(2)
+            col_m1.metric("Distancia intra-cluster (media)", f"{np.mean(intra_dists):.2f}")
+            col_m2.metric("Distancia inter-cluster (media)", f"{inter_dist:.2f}")
+            st.metric("Índice de separación (mayor = mejor)", f"{silhouette_proxy:.3f}")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — QUIZ
+# ══════════════════════════════════════════════════════════════════════════════
 with tab3:
-    st.markdown('<p class="section-label">Test yourself</p>', unsafe_allow_html=True)
-    st.markdown("## 🧠 Quiz — check your understanding")
+    st.markdown('<p class="section-label">Comprueba lo que sabes</p>', unsafe_allow_html=True)
+    st.markdown("## 🧠 Quiz — pon a prueba tu comprensión de t-SNE")
+    st.markdown("4 preguntas con feedback inmediato y explicación detallada.")
     st.markdown("---")
 
-    questions = [
+    preguntas = [
         {
-            "q": "What type of structure can t-SNE reveal that PCA cannot?",
+            "q": "¿Qué controla la perplejidad en t-SNE?",
             "opts": [
-                "Linear correlations between variables",
-                "Non-linear relationships and curved manifolds",
-                "Pearson correlations",
-                "Scale differences between variables",
-            ],
-            "ans": 1,
-            "exp": "t-SNE is **non-linear**, so it can reveal complex structures "
-                   "like spirals, spheres, and curved manifolds that PCA would flatten incorrectly.",
-        },
-        {
-            "q": "What does a very HIGH perplexity value do in t-SNE?",
-            "opts": [
-                "Each point considers more neighbours → global structure is emphasised",
-                "Clusters become smaller and more compact",
-                "The algorithm runs faster",
-                "All information in the data is lost",
-            ],
-            "ans": 0,
-            "exp": "High perplexity makes each point consider a **wider neighbourhood**, "
-                   "giving a more global view of the data. Low perplexity = local focus.",
-        },
-        {
-            "q": "Why can't you use t-SNE to preprocess data for a Machine Learning pipeline?",
-            "opts": [
-                "Because t-SNE only works with small datasets",
-                "Because t-SNE cannot transform new, unseen data points",
-                "Because t-SNE always distorts distances",
-                "Because t-SNE is too slow for any practical use",
-            ],
-            "ans": 1,
-            "exp": "t-SNE **has no transform function** — it cannot project new data "
-                   "that wasn't seen during fitting. Use PCA or UMAP for production pipelines.",
-        },
-        {
-            "q": "What is dangerous about interpreting distances BETWEEN clusters in a t-SNE plot?",
-            "opts": [
-                "Nothing — distances are always reliable in t-SNE",
-                "Farther clusters are always less similar",
-                "Inter-cluster distances are NOT meaningful — only intra-cluster tightness is",
-                "Closer clusters are always more similar",
+                "El número de dimensiones del resultado final",
+                "La velocidad de convergencia del algoritmo",
+                "Cuántos vecinos considera cada punto al medir similitudes",
+                "La escala de los ejes en el plot 2D",
             ],
             "ans": 2,
-            "exp": "This is the most common t-SNE mistake! The distance between two clusters "
-                   "on the map tells you nothing about their actual similarity. "
-                   "Only the compactness within a cluster has meaning.",
+            "exp": "La **perplejidad** define el número efectivo de vecinos que cada punto "
+                   "considera. Baja = sólo vecinos muy cercanos. Alta = visión más amplia. "
+                   "El rango recomendado es 5–50, con 30 como valor por defecto.",
+        },
+        {
+            "q": "¿Qué significa que dos clusters estén lejos en un plot t-SNE?",
+            "opts": [
+                "Que esos grupos son muy diferentes entre sí en el espacio original",
+                "Que t-SNE necesita más iteraciones para converger",
+                "Nada — las distancias entre clusters en t-SNE no son interpretables",
+                "Que la perplejidad está demasiado alta",
+            ],
+            "ans": 2,
+            "exp": "¡Trampa clásica! Las distancias **entre** clusters en t-SNE **no tienen "
+                   "significado**. t-SNE preserva la estructura local (dentro de cada cluster) "
+                   "pero distorsiona las distancias globales. Dos clusters lejanos podrían "
+                   "ser tan diferentes o tan parecidos como dos clusters cercanos.",
+        },
+        {
+            "q": "¿Por qué t-SNE usa la distribución t de Student en 2D en lugar de Gaussiana?",
+            "opts": [
+                "Porque la Gaussiana es demasiado lenta de calcular",
+                "Para que los puntos lejanos se separen más, creando clusters mejor definidos",
+                "Porque la distribución t es siempre más precisa que la Gaussiana",
+                "Para que el algoritmo sea determinista",
+            ],
+            "ans": 1,
+            "exp": "La distribución **t de Student** tiene 'colas más gruesas' que la Gaussiana. "
+                   "Esto permite que los puntos que no son vecinos cercanos se separen más "
+                   "en el espacio 2D, creando los clusters compactos y bien separados "
+                   "característicos de t-SNE.",
+        },
+        {
+            "q": "¿En cuál de estos escenarios NO deberías usar t-SNE?",
+            "opts": [
+                "Para explorar visualmente si hay grupos naturales en los datos",
+                "Para reducir dimensiones antes de entrenar un modelo y aplicarlo a datos nuevos",
+                "Para verificar que un clustering tiene sentido visualmente",
+                "Para visualizar datos de secuenciación genómica (scRNA-seq)",
+            ],
+            "ans": 1,
+            "exp": "t-SNE **no puede transformar nuevos datos** (no tiene `.transform()`). "
+                   "Es un método puramente de visualización. Para preprocesamiento de un "
+                   "pipeline ML que deba procesar datos nuevos, usa PCA o UMAP.",
         },
     ]
 
-    for i, item in enumerate(questions):
-        st.markdown(f"**Question {i+1} of {len(questions)}:** {item['q']}")
+    score = 0
+    answered = 0
+    for i, item in enumerate(preguntas):
+        st.markdown(f"**Pregunta {i+1} de {len(preguntas)}:** {item['q']}")
         choice = st.radio("", item["opts"], key=f"tsne_q{i}", index=None)
         if choice is not None:
+            answered += 1
             if item["opts"].index(choice) == item["ans"]:
-                st.success(f"✅ Correct! {item['exp']}")
-            else:
-                correct = item["opts"][item["ans"]]
-                st.error(f"❌ Not quite. Correct answer: **{correct}**\n\n{item['exp']}")
-        st.markdown("---")
-
-tab1, tab2, tab3 = st.tabs(["📖 ¿Cómo funciona?", "🎯 Demo interactiva", "🧠 Quiz"])
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab1:
-    st.markdown("## La idea detrás de t-SNE")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(
-            """
-            ### El problema que resuelve
-            PCA es lineal: sólo dobla y estira el espacio.
-            Pero los datos reales tienen formas complejas, como una **esfera,
-            una espiral o un toro**.
-
-            t-SNE es **no lineal**: puede doblar, torcer y enrollar el espacio
-            para revelar la estructura real de los datos.
-
-            ### ¿Cómo lo hace?
-            1. **Mide similitudes en alta dimensión:** ¿qué puntos están cerca?
-               Usa una distribución normal (Gaussiana) para calcular probabilidades
-               de vecindad.
-            2. **Crea un mapa en 2D:** coloca los puntos al azar en 2D.
-            3. **Ajusta iterativamente:** mueve los puntos para que las distancias
-               en 2D reflejen las similitudes en alta dimensión.
-               Usa una distribución **t de Student** (de ahí la "t") que tiene
-               colas más gruesas → los grupos quedan más separados.
-            """
-        )
-        st.info(
-            "🎯 **t-SNE es excelente para visualización**, pero no para comprimir "
-            "datos antes de entrenar modelos. Para eso usa PCA o UMAP."
-        )
-
-    with col2:
-        st.markdown("### Parámetros clave que debes entender")
-        st.markdown(
-            """
-            <style>
-            .param-card { background: #1E1E2E; border-radius: 8px; padding: 1rem;
-                          border-left: 3px solid #48CAE4; margin-bottom: .8rem; }
-            </style>
-            <div class="param-card">
-                <b style="color:#48CAE4">Perplejidad (perplexity)</b><br>
-                Cuántos vecinos "considera" cada punto. Valores bajos → grupos
-                pequeños muy compactos. Valores altos → visión más global.<br>
-                <small>💡 Recomendado: entre 5 y 50. Típico: 30.</small>
-            </div>
-            <div class="param-card">
-                <b style="color:#48CAE4">Iteraciones (n_iter)</b><br>
-                Cuántos pasos de optimización hace el algoritmo.<br>
-                <small>💡 Mínimo 250. Recomendado: 1000+.</small>
-            </div>
-            <div class="param-card">
-                <b style="color:#48CAE4">Tasa de aprendizaje (learning rate)</b><br>
-                Qué tan rápido se mueven los puntos en cada iteración.<br>
-                <small>💡 scikit-learn lo ajusta automáticamente.</small>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.warning(
-            "⚠️ **Atención:** t-SNE es **estocástico** — cada ejecución puede "
-            "dar resultados distintos. Las distancias entre clusters NO son "
-            "directamente interpretables."
-        )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab2:
-    st.markdown("## 🎯 Experimenta con t-SNE")
-    st.markdown(
-        "⏱️ *t-SNE puede tardar unos segundos. Es normal: es un algoritmo iterativo.*"
-    )
-
-    col_cfg, col_plot = st.columns([1, 2])
-    with col_cfg:
-        dataset_name = st.selectbox(
-            "Dataset", ["Iris 🌸", "Vino 🍷", "Dígitos ✏️"], key="tsne_ds"
-        )
-        perplexity = st.slider(
-            "Perplejidad", min_value=5, max_value=100, value=30, step=5, key="tsne_perp"
-        )
-        n_iter = st.select_slider(
-            "Iteraciones", options=[250, 500, 750, 1000, 2000], value=1000, key="tsne_iter"
-        )
-        run_btn = st.button("▶️ Ejecutar t-SNE", type="primary", key="tsne_run")
-
-    X, y, _, desc = load_dataset(dataset_name)
-    st.info(desc)
-
-    if run_btn or "tsne_result" not in st.session_state or st.session_state.get("tsne_cfg") != (dataset_name, perplexity, n_iter):
-        with st.spinner("Calculando t-SNE… ⏳"):
-            # Para dígitos usa submuestra para no tardar demasiado
-            if dataset_name == "Dígitos ✏️" and X.shape[0] > 500:
-                idx = np.random.RandomState(42).choice(X.shape[0], 500, replace=False)
-                X_use, y_use = X[idx], y[idx]
-            else:
-                X_use, y_use = X, y
-            X_tsne = apply_tsne(X_use, perplexity=perplexity, n_iter=n_iter)
-            st.session_state["tsne_result"] = (X_tsne, y_use)
-            st.session_state["tsne_cfg"] = (dataset_name, perplexity, n_iter)
-
-    X_tsne, y_use = st.session_state["tsne_result"]
-    with col_plot:
-        fig = scatter_2d(X_tsne, y_use, title=f"t-SNE — {dataset_name} (perp={perplexity})")
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("### 💬 ¿Qué observas?")
-    st.markdown(
-        """
-        - ¿Se forman **grupos (clusters) claramente separados**?
-        - ¿Qué pasa si bajas la **perplejidad a 5**? (grupos muy pequeños y aislados)
-        - ¿Qué pasa si la subes a **80**? (todo más mezclado, visión global)
-        - ¿Se parecen los resultados con distintas semillas/iteraciones?
-        """
-    )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab3:
-    st.markdown("## 🧠 Comprueba lo que has aprendido")
-
-    questions = [
-        {
-            "q": "¿Qué tipo de relaciones captura t-SNE que PCA no puede?",
-            "opts": [
-                "Relaciones lineales entre variables",
-                "Relaciones no lineales y estructuras curvas",
-                "Correlaciones de Pearson",
-                "Diferencias de escala entre variables",
-            ],
-            "ans": 1,
-            "exp": "t-SNE es **no lineal**, por lo que puede revelar estructuras "
-                   "complejas como espirales, esferas o manifolds curvos.",
-        },
-        {
-            "q": "¿Qué significa una perplejidad muy alta en t-SNE?",
-            "opts": [
-                "El algoritmo considerará más vecinos y verá la estructura global",
-                "Los grupos quedarán más pequeños y compactos",
-                "El algoritmo irá más rápido",
-                "Se perderá toda la información de los datos",
-            ],
-            "ans": 0,
-            "exp": "Una perplejidad alta hace que cada punto considere más vecinos, "
-                   "dando una visión más **global** de los datos. Perplejidad baja "
-                   "→ énfasis en estructura local.",
-        },
-        {
-            "q": "¿Por qué no se puede usar t-SNE para comprimir datos antes de entrenar un modelo?",
-            "opts": [
-                "Porque t-SNE sólo funciona con datasets pequeños",
-                "Porque t-SNE no tiene función de transformación para nuevos datos",
-                "Porque t-SNE siempre distorsiona las distancias",
-                "Porque t-SNE es demasiado lento",
-            ],
-            "ans": 1,
-            "exp": "t-SNE **no puede transformar nuevos datos** que no ha visto durante el entrenamiento. "
-                   "Para usar reducción en pipelines de ML, usa PCA o UMAP.",
-        },
-    ]
-
-    for i, item in enumerate(questions):
-        st.markdown(f"**Pregunta {i+1}:** {item['q']}")
-        choice = st.radio("", item["opts"], key=f"tsne_q{i}", index=None)
-        if choice is not None:
-            if item["opts"].index(choice) == item["ans"]:
+                score += 1
                 st.success(f"✅ ¡Correcto! {item['exp']}")
             else:
-                st.error(f"❌ No exactamente. {item['exp']}")
+                correcta = item["opts"][item["ans"]]
+                st.error(f"❌ No del todo. La respuesta correcta es: **{correcta}**\n\n{item['exp']}")
         st.markdown("---")
+
+    if answered == len(preguntas):
+        pct = int(score / len(preguntas) * 100)
+        if pct == 100:
+            st.balloons()
+            st.success(f"🏆 ¡Perfecto! {score}/{len(preguntas)} — ¡Dominas t-SNE!")
+        elif pct >= 50:
+            st.info(f"👍 Bien: {score}/{len(preguntas)}. Repasa las explicaciones y vuelve a intentarlo.")
+        else:
+            st.warning(f"📚 {score}/{len(preguntas)}. Vuelve a la pestaña '¿Cómo funciona?' con atención.")

@@ -1,477 +1,511 @@
-"""Página UMAP — explicación interactiva."""
+"""Página UMAP — explicación interactiva y visual en español."""
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import streamlit as st
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils.helpers import load_dataset, apply_umap, scatter_2d
+from utils.helpers import load_dataset, apply_tsne, apply_umap, scatter_2d
 
 st.set_page_config(page_title="UMAP", page_icon="🚀", layout="wide")
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .section-label { font-size:.75rem; font-weight:700; letter-spacing:.1em;
-    text-transform:uppercase; color:#FF6B6B; margin-bottom:.2rem; }
-.concept-box { background:#1E1E2E; border-radius:10px; padding:1rem 1.2rem;
-    border-left:4px solid; margin-bottom:.8rem; }
-.step-block { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
-.step-num { background:#FF6B6B; color:#fff; font-weight:800; border-radius:50%;
-    width:2rem; height:2rem; min-width:2rem;
-    display:flex; align-items:center; justify-content:center; font-size:.9rem; }
-.step-body { color:#D1D5DB; font-size:.93rem; line-height:1.55; padding-top:.1rem; }
+    text-transform:uppercase; color:#A78BFA; margin-bottom:.2rem; }
+.step-block { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1.1rem; }
+.step-num { background:#A78BFA; color:#0f172a; font-weight:800; border-radius:50%;
+    width:2.2rem; height:2.2rem; min-width:2.2rem;
+    display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+.step-body { color:#D1D5DB; font-size:.94rem; line-height:1.6; padding-top:.15rem; }
 .callout-green  { background:#052e16; border:1px solid #16a34a; border-radius:8px;
     padding:.9rem 1.1rem; color:#86efac; font-size:.93rem; margin-bottom:.6rem; }
 .callout-yellow { background:#1c1700; border:1px solid #ca8a04; border-radius:8px;
     padding:.9rem 1.1rem; color:#fde047; font-size:.93rem; margin-bottom:.6rem; }
 .callout-blue   { background:#0c1a2e; border:1px solid #2563eb; border-radius:8px;
     padding:.9rem 1.1rem; color:#93c5fd; font-size:.93rem; margin-bottom:.6rem; }
+.callout-purple { background:#1a0f2e; border:1px solid #7c3aed; border-radius:8px;
+    padding:.9rem 1.1rem; color:#c4b5fd; font-size:.93rem; margin-bottom:.6rem; }
+.big-metric { background:#1E1E2E; border-radius:12px; padding:1.2rem;
+    text-align:center; border:1px solid #374151; }
+.big-metric .val { font-size:2.5rem; font-weight:800; color:#A78BFA; }
+.big-metric .lbl { font-size:.85rem; color:#9CA3AF; margin-top:.2rem; }
+.vs-table td { padding: .4rem .8rem; font-size:.9rem; }
+.vs-table th { padding: .4rem .8rem; font-size:.9rem; color:#A78BFA; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("# 🚀 UMAP — Topological Map of Your Data")
+st.markdown("# 🚀 UMAP — Uniform Manifold Approximation and Projection")
 st.markdown(
-    "> *Like building a subway map: you keep which stations are connected and how far apart "
-    "they are, but you bend and fold the lines to fit everything on a single page.*"
+    "> *Como desenrollar una hoja de papel arrugada: revela la forma real de los datos "
+    "preservando tanto los detalles locales como la estructura global.*"
 )
 
-tab1, tab2, tab3 = st.tabs(["📖 How it works", "🎯 Interactive demo", "🧠 Quiz"])
+tab1, tab2, tab3 = st.tabs([
+    "📖 ¿Cómo funciona?",
+    "🎯 Demo interactiva",
+    "🧠 Quiz",
+])
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TAB 1 — TEORÍA
+# ══════════════════════════════════════════════════════════════════════════════
 with tab1:
-    st.markdown('<p class="section-label">Conceptual foundation</p>', unsafe_allow_html=True)
-    st.markdown("## UMAP — the smarter, faster sibling of t-SNE")
+    st.markdown('<p class="section-label">Fundamento conceptual</p>', unsafe_allow_html=True)
+    st.markdown("## ¿Qué hace UMAP exactamente?")
 
-    col1, col2 = st.columns([1.1, 1], gap="large")
-    with col1:
+    col_text, col_plot = st.columns([1, 1], gap="large")
+
+    with col_text:
         st.markdown("""
-### What is a manifold?
+Imagina que tienes una hoja de papel con puntos dibujados, y la arrugaste en una bola.
+La bola ahora existe en 3D, pero la "naturaleza real" del papel es 2D.
 
-A **manifold** is a lower-dimensional surface *hidden inside* a high-dimensional space.
+UMAP es el proceso de **desenrollar esa bola** para volver a tener la hoja plana,
+intentando que las distancias entre los puntos del papel se conserven al máximo posible.
 
-**Real-world examples:**
-- 🌍 The Earth's surface is a 2D manifold living in 3D space
-- 🧻 A crumpled sheet of paper is a 2D manifold in 3D
-- 🍩 The surface of a donut (torus) is a 2D manifold in 3D
+En términos más precisos: UMAP asume que los datos viven en una **superficie curva
+de baja dimensión** (llamada *manifold*) dentro del espacio de alta dimensión,
+y usa matemáticas de grafos y topología para "aplanar" esa superficie.
 
-UMAP's key assumption: **your data lives on (or near) a low-dimensional manifold**.
-Its job is to find that manifold and "unroll" it into 2D.
+> **La diferencia clave con t-SNE:**  
+> t-SNE sólo preserva bien la estructura **local** (vecindarios).  
+> UMAP preserva también la estructura **global** — la relación entre grupos distantes.
 """)
 
-        st.markdown("### The 3-step algorithm")
-        steps = [
-            ("Build a neighbourhood graph",
-             "For each data point, find its <code>n_neighbors</code> nearest neighbours "
-             "and connect them with edges. Assign weights to edges based on distance "
-             "(closer = stronger connection). This creates a <strong>weighted graph</strong> "
-             "that captures the local topology of the data."),
-            ("Compute fuzzy simplicial sets",
-             "Convert the graph into a fuzzy topological representation. "
-             "This uses Riemannian geometry to account for the fact that distances "
-             "may be measured differently in different regions of the manifold. "
-             "<em>(Don't worry about the maths — the key idea is: build a reliable map of who's near who.)</em>"),
-            ("Optimise the 2D layout",
-             "Initialise points in 2D (often using PCA for stability). "
-             "Then iteratively move points so that the 2D neighbourhood graph "
-             "matches the high-dimensional graph as closely as possible. "
-             "Uses <code>min_dist</code> to control how tightly points cluster together."),
+        st.markdown("### 🪜 El algoritmo en 3 pasos")
+        pasos = [
+            ("Construir el grafo de vecindad (alta dimensión)",
+             "Para cada punto, encuentra sus <strong>n_neighbors</strong> vecinos más cercanos "
+             "y crea una arista ponderada (conexión) entre ellos. "
+             "El peso de cada arista refleja qué tan cercanos son los puntos. "
+             "El resultado es un <em>grafo difuso</em> que captura la topología de los datos."),
+            ("Construir el grafo objetivo (baja dimensión)",
+             "Crea un grafo equivalente en el espacio 2D de destino, "
+             "con los puntos colocados inicialmente de forma aleatoria. "
+             "El objetivo es que este grafo se parezca lo más posible al de alta dimensión."),
+            ("Optimizar minimizando la diferencia entre grafos",
+             "Mueve los puntos en 2D iterativamente usando descenso de gradiente "
+             "para que el grafo de baja dimensión se parezca al de alta dimensión. "
+             "UMAP usa una función de coste llamada <em>entropía cruzada difusa</em>. "
+             "Esto es mucho más rápido que t-SNE y también preserva la estructura global."),
         ]
-        for i, (title, body) in enumerate(steps, 1):
+        for i, (titulo, cuerpo) in enumerate(pasos, 1):
             st.markdown(
                 f'<div class="step-block">'
                 f'<div class="step-num">{i}</div>'
-                f'<div class="step-body"><strong style="color:#E5E7EB">{title}</strong>'
-                f'<br>{body}</div></div>',
+                f'<div class="step-body"><strong style="color:#E5E7EB">{titulo}</strong>'
+                f'<br>{cuerpo}</div></div>',
                 unsafe_allow_html=True,
             )
 
         st.markdown(
-            '<div class="callout-green">✅ <strong>UMAP\'s key advantage over t-SNE:</strong> '
-            'It learns a proper mapping function, so it <strong>can transform new data</strong> '
-            'with <code>.transform()</code>. This makes it suitable for real ML pipelines. '
-            'It\'s also typically 5–10× faster than t-SNE.</div>',
-            unsafe_allow_html=True,
-        )
+            '<div class="callout-purple">🔑 <strong>Concepto clave — Manifold:</strong> '
+            'Un manifold es una superficie que localmente parece plana, aunque globalmente '
+            'sea curva. La Tierra es un manifold 2D que vive en 3D. '
+            'UMAP asume que tus datos forman un manifold de baja dimensión '
+            'dentro del espacio de alta dimensión y lo "desenrolla".'
+            '</div>', unsafe_allow_html=True)
+
+    with col_plot:
+        st.markdown("### 🌐 Visualizando un manifold en 3D")
         st.markdown(
-            '<div class="callout-blue">💡 <strong>Unlike t-SNE</strong>, UMAP also preserves '
-            '<strong>global structure</strong> — the relative positions between clusters '
-            'are more meaningful. Clusters that are far apart in UMAP tend to be genuinely '
-            'more different from each other.</div>',
-            unsafe_allow_html=True,
+            "El ejemplo clásico: los datos viven en la superficie de un **rollo suizo** en 3D, "
+            "pero su estructura real es 2D. UMAP lo detecta y lo aplana."
         )
+        np.random.seed(42)
+        n_manifold = 500
+        t_m = 1.5 * np.pi * (1 + 2 * np.random.rand(n_manifold))
+        h_m = 21 * np.random.rand(n_manifold)
+        x_m = t_m * np.cos(t_m)
+        y_m = h_m
+        z_m = t_m * np.sin(t_m)
+        color_m = t_m
+
+        fig_manifold = go.Figure(data=[go.Scatter3d(
+            x=x_m, y=y_m, z=z_m,
+            mode="markers",
+            marker=dict(
+                size=4, color=color_m,
+                colorscale="Viridis", opacity=0.85,
+                colorbar=dict(title="Posición<br>en rollo", len=0.6)
+            )
+        )])
+        fig_manifold.update_layout(
+            template="plotly_dark", height=320,
+            title="Rollo suizo — manifold 2D en espacio 3D",
+            scene=dict(
+                xaxis_title="X", yaxis_title="Y", zaxis_title="Z",
+                bgcolor="#0e1117"),
+            margin=dict(l=0, r=0, t=40, b=0))
+        st.plotly_chart(fig_manifold, use_container_width=True)
+
         st.markdown(
-            '<div class="callout-yellow">⚠️ <strong>Caveat:</strong> Like t-SNE, UMAP still '
-            'distorts some distances. Treat the map as a guide, not a precise ruler. '
-            'Always verify important findings with quantitative methods.</div>',
-            unsafe_allow_html=True,
-        )
+            '<div class="callout-blue">💡 UMAP detectaría que estos puntos viven en '
+            'una superficie 2D y los "desenrollaría" para que la gradación de colores '
+            'quede como una banda lineal — preservando las distancias reales entre puntos.'
+            '</div>', unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("### Full comparison: PCA vs t-SNE vs UMAP")
-        df_comp = pd.DataFrame({
-            "Feature": [
-                "Type", "Speed", "Global structure", "Local structure",
-                "New data (.transform)", "Reproducible", "Scalability", "Best use case"
-            ],
-            "🧩 PCA": ["Linear", "⚡⚡⚡ Very fast", "✅✅✅", "⚠️ Weak",
-                       "✅", "✅✅✅", "✅✅✅ Millions", "Preprocessing, fast viz"],
-            "🌌 t-SNE": ["Non-linear", "🐢 Slow", "⚠️ Often lost", "✅✅✅",
-                         "❌", "⚠️", "❌ ~50k rows", "Cluster exploration"],
-            "🚀 UMAP": ["Non-linear", "⚡⚡ Fast", "✅✅", "✅✅",
-                        "✅", "✅✅", "✅✅ Millions", "Everything"],
-        })
-        st.dataframe(df_comp, use_container_width=True, hide_index=True)
+    st.divider()
 
-        st.markdown("### 🎚️ The two key parameters")
-        params = [
-            ("#FF6B6B", "n_neighbors — neighbourhood size",
-             [("2–5", "Only immediate neighbours. Tiny, fragmented clusters. "
-               "High-resolution local structure but noisy global layout."),
-              ("15 ← default", "Good balance. Recommended starting point."),
-              ("50–100", "Wide neighbourhood. Cohesive global structure, "
-               "but local sub-clusters may merge.")]),
-            ("#F59E0B", "min_dist — cluster compactness",
-             [("0.0", "Points are packed as tightly as possible. "
-               "Very compact, dense clusters."),
-              ("0.1 ← default", "Slight spread. Good visual separation."),
-              ("0.5–0.9", "Points spread uniformly. "
-               "Useful when you care more about global layout than cluster tightness.")]),
-        ]
-        for color, param_name, values in params:
-            rows_html = "".join(
-                f'<tr><td style="color:{color};padding:.3rem .5rem;font-weight:600">{v}</td>'
-                f'<td style="color:#D1D5DB;padding:.3rem .5rem;font-size:.87rem">{d}</td></tr>'
-                for v, d in values
-            )
-            st.markdown(
-                f'<div class="concept-box" style="border-left-color:{color}">'
-                f'<strong style="color:{color}">{param_name}</strong>'
-                f'<table style="width:100%;margin-top:.5rem;border-collapse:collapse">'
-                f'{rows_html}</table></div>',
-                unsafe_allow_html=True,
-            )
+    # ── Los dos parámetros clave ───────────────────────────────────────────
+    st.markdown("## 🎛️ Los dos parámetros más importantes")
 
-        # Visual: n_neighbors effect diagram
-        st.markdown("### 📐 n_neighbors: local vs global")
-        categories = ["Local detail", "Cluster coherence", "Global layout", "Speed"]
-        low_nn  = [5, 2, 1, 4]
-        high_nn = [2, 5, 5, 3]
-        fig_radar = go.Figure()
-        fig_radar.add_trace(go.Scatterpolar(r=low_nn + [low_nn[0]], theta=categories + [categories[0]],
-                                             fill="toself", name="n_neighbors = 5",
-                                             line_color="#FF6B6B"))
-        fig_radar.add_trace(go.Scatterpolar(r=high_nn + [high_nn[0]], theta=categories + [categories[0]],
-                                             fill="toself", name="n_neighbors = 50",
-                                             line_color="#48CAE4"))
-        fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
-            template="plotly_dark", height=260,
-            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
-            margin=dict(l=20, r=20, t=20, b=20),
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.markdown("### 🔗 `n_neighbors` — vecinos del grafo")
+        st.markdown("""
+Controla cuántos vecinos considera cada punto al construir el grafo.
+
+| Valor | Efecto |
+|-------|--------|
+| **2–5** (muy bajo) | Ve sólo estructura muy local → clusters muy fragmentados |
+| **15** (recomendado) | Balance entre detalle local y estructura global |
+| **50–200** (alto) | Ve estructura global → clusters más grandes y conectados |
+
+> **Analogía:** si sólo miras a tus 2 vecinos más cercanos, no ves el barrio.
+> Si miras a 200, ves toda la ciudad pero pierdes el detalle del bloque.
+""")
+        st.markdown(
+            '<div class="callout-green">✅ Para <strong>exploración inicial</strong>: '
+            'usa n_neighbors=15. Para <strong>estructuras globales</strong>: '
+            'sube a 50–100.</div>', unsafe_allow_html=True)
+
+    with col_p2:
+        st.markdown("### 📏 `min_dist` — distancia mínima en el mapa")
+        st.markdown("""
+Controla qué tan apretados están los puntos dentro de cada cluster en el resultado.
+
+| Valor | Efecto |
+|-------|--------|
+| **0.0** | Clusters ultra-compactos, puntos muy juntos |
+| **0.1** (recomendado) | Clusters compactos pero con estructura interna visible |
+| **0.5** | Clusters más distribuidos |
+| **0.9** | Puntos muy dispersos, sin estructura clara de clusters |
+
+> **Analogía:** min_dist es como el zoom de la cámara al fotografiar los clusters.
+> Bajo = zoom máximo, puntos muy juntos. Alto = gran angular, puntos dispersos.
+""")
+        st.markdown(
+            '<div class="callout-blue">💡 Para <strong>visualización de clusters</strong>: '
+            'usa min_dist=0.1. Para <strong>ver estructura continua</strong> (sin clusters): '
+            'sube a 0.5–0.9.</div>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── UMAP vs t-SNE ──────────────────────────────────────────────────────
+    st.markdown("## ⚔️ UMAP vs t-SNE — comparativa completa")
+
+    comparativa = {
+        "Característica": [
+            "Velocidad", "Estructura local", "Estructura global",
+            "Transformar datos nuevos", "Escalabilidad", "Reproducibilidad",
+            "Fundamento matemático", "Año de publicación",
+        ],
+        "t-SNE 🌌": [
+            "🐢 Lento (O(n²))", "✅ Excelente", "⚠️ Se pierde parcialmente",
+            "❌ Imposible", "❌ ~50k filas máx.", "⚠️ Variable (inicio aleatorio)",
+            "Estadístico (probabilidades)", "2008",
+        ],
+        "UMAP 🚀": [
+            "⚡ Rápido (O(n^1.14))", "✅ Muy buena", "✅ Se preserva bien",
+            "✅ Sí (.transform())", "✅ Millones de filas", "✅ Con random_state",
+            "Topológico (grafos)", "2018",
+        ],
+    }
+    df_comp = pd.DataFrame(comparativa)
+    st.dataframe(
+        df_comp.set_index("Característica"),
+        use_container_width=True,
+        height=320)
+
+    st.markdown(
+        '<div class="callout-yellow">⚠️ <strong>¿Cuándo elegir t-SNE sobre UMAP?</strong> '
+        'Cuando la separación visual de clusters compactos es lo más importante y el dataset '
+        'no es muy grande. t-SNE a veces produce clusters más "nítidos" visualmente, '
+        'aunque UMAP es generalmente superior en todo lo demás.</div>',
+        unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Cuándo usar ────────────────────────────────────────────────────────
+    st.markdown("## ✅❌ ¿Cuándo usar UMAP?")
+    col_si, col_no = st.columns(2)
+    with col_si:
+        st.markdown("### ✅ Úsalo cuando...")
+        st.markdown("""
+- t-SNE es **demasiado lento** para tu dataset
+- Necesitas un pipeline que **transforme datos nuevos**
+- Quieres preservar tanto **estructura local como global**
+- Trabajas en **bioinformática** (scRNA-seq, proteómica)
+- Tu dataset tiene más de **50.000 filas**
+- Necesitas **reproducibilidad** (fija `random_state`)
+- Quieres usar la reducción como **preprocesamiento para ML**
+""")
+    with col_no:
+        st.markdown("### ❌ Considera otras opciones cuando...")
+        st.markdown("""
+- Los datos tienen relaciones **puramente lineales** → PCA es más interpretable
+- Necesitas que los **loadings** sean interpretables → PCA
+- El tiempo de instalación es un problema (umap-learn requiere compiladores)
+- La separación visual de clusters pequeños es crítica → t-SNE puede ser mejor
+- Los datos tienen **muy pocas dimensiones** (2-5D) → visualiza directamente
+""")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TAB 2 — DEMO INTERACTIVA
+# ══════════════════════════════════════════════════════════════════════════════
 with tab2:
-    st.markdown('<p class="section-label">Hands-on</p>', unsafe_allow_html=True)
-    st.markdown("## 🎯 Experiment with UMAP")
-    st.markdown("⏱️ *UMAP is faster than t-SNE but may take a few seconds on large datasets.*")
+    st.markdown('<p class="section-label">Manos a la obra</p>', unsafe_allow_html=True)
+    st.markdown("## 🎯 Prueba UMAP con datos reales")
 
-    col_cfg, col_plot = st.columns([1, 2])
+    col_cfg, col_plot = st.columns([1, 2.2])
     with col_cfg:
         dataset_name = st.selectbox("Dataset", ["Iris 🌸", "Vino 🍷", "Dígitos ✏️"], key="umap_ds")
-        n_neighbors = st.slider("n_neighbors", min_value=2, max_value=100, value=15, step=1, key="umap_nn")
-        min_dist = st.slider("min_dist", min_value=0.0, max_value=0.99, value=0.1, step=0.05, key="umap_md")
-        run_btn = st.button("▶️ Run UMAP", type="primary", key="umap_run")
+        n_neighbors = st.slider("n_neighbors (vecinos)", 2, 100, 15, key="umap_nn")
+        min_dist = st.slider("min_dist (separación)", 0.0, 0.99, 0.1, 0.05, key="umap_md")
         st.markdown("---")
         st.markdown("""
-**💡 Experiments to try:**
-- Set `min_dist = 0.0` → ultra-compact clusters
-- Set `min_dist = 0.9` → points spread uniformly
-- Set `n_neighbors = 3` → fragmented micro-clusters
-- Set `n_neighbors = 80` → cohesive global layout
-- Compare with the t-SNE result on the same dataset
+**💡 Qué observar:**
+- Aumenta n_neighbors: ¿los clusters se conectan?
+- Bájalo a 2–5: ¿aparecen sub-clusters?
+- Sube min_dist a 0.9: ¿los puntos se dispersan?
+- ¿Ves que los clusters mantienen su posición relativa?
+  Eso es la **estructura global** que UMAP preserva.
 """)
+        st.markdown(
+            '<div class="callout-purple">🚀 UMAP es mucho más rápido que t-SNE, '
+            'especialmente para datasets grandes. Prueba cambiando parámetros — '
+            'notarás la diferencia de velocidad.</div>', unsafe_allow_html=True)
 
-    X, y, _, desc = load_dataset(dataset_name)
+    X, y, df_orig, desc = load_dataset(dataset_name)
     st.info(desc)
 
-    cache_key = (dataset_name, n_neighbors, min_dist)
-    if (run_btn
-            or "umap_result" not in st.session_state
-            or st.session_state.get("umap_cfg") != cache_key):
-        with st.spinner("Running UMAP… 🗺️"):
-            X_umap = apply_umap(X, n_neighbors=n_neighbors, min_dist=min_dist)
-            st.session_state["umap_result"] = (X_umap, y)
-            st.session_state["umap_cfg"] = cache_key
-
-    X_umap, y_stored = st.session_state["umap_result"]
     with col_plot:
-        fig = scatter_2d(
-            X_umap, y_stored,
-            title=f"UMAP — {dataset_name}  (n_neighbors={n_neighbors}, min_dist={min_dist})",
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        with st.spinner("🔄 Ejecutando UMAP..."):
+            X_umap = apply_umap(X, n_neighbors=n_neighbors, min_dist=min_dist)
 
-    st.markdown("### 💬 What do you observe?")
-    col_o1, col_o2 = st.columns(2)
-    with col_o1:
-        st.markdown("""
-**Questions:**
-- Are the clusters well separated?
-- Do clusters farther apart seem more different conceptually?
-- Does the structure change dramatically with `n_neighbors`?
-""")
-    with col_o2:
-        st.markdown("""
-**UMAP vs t-SNE:**
-- UMAP tends to preserve more global structure
-- UMAP usually runs faster
-- Both can separate classes well — compare them in the ⚔️ Compare page
-""")
+        fig_umap = scatter_2d(
+            X_umap, y,
+            title=f"UMAP — {dataset_name} (n_neighbors={n_neighbors}, min_dist={min_dist})",
+            x_label="UMAP 1",
+            y_label="UMAP 2")
+        st.plotly_chart(fig_umap, use_container_width=True)
+
+        n_clusters = len(np.unique(y))
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("Dimensiones originales", X.shape[1])
+        col_m2.metric("Dimensiones reducidas", 2)
+        col_m3.metric("Clases en el dataset", n_clusters)
+
+    st.divider()
+
+    # ── Comparativa UMAP vs t-SNE en vivo ─────────────────────────────────
+    st.markdown("## ⚡ UMAP vs t-SNE — cara a cara en el mismo dataset")
+    st.markdown(
+        "Compara los resultados de ambos algoritmos con el **mismo dataset**. "
+        "Observa las diferencias en la estructura global y la velocidad."
+    )
+
+    ds_vs = st.selectbox("Dataset para comparar", ["Iris 🌸", "Vino 🍷", "Dígitos ✏️"], key="umap_vs_ds")
+
+    if st.button("🔄 Comparar UMAP vs t-SNE", key="umap_vs_btn"):
+        X_vs, y_vs, _, _ = load_dataset(ds_vs)
+        col_u, col_t = st.columns(2)
+
+        with col_u:
+            with st.spinner("Ejecutando UMAP..."):
+                import time
+                t0 = time.time()
+                Xu = apply_umap(X_vs, n_neighbors=15, min_dist=0.1)
+                t_umap = time.time() - t0
+            fig_u = scatter_2d(Xu, y_vs, title="UMAP (n_neighbors=15)",
+                               x_label="UMAP 1", y_label="UMAP 2")
+            fig_u.update_layout(height=330, showlegend=False,
+                                margin=dict(l=10, r=10, t=40, b=20))
+            st.plotly_chart(fig_u, use_container_width=True)
+            st.metric("⏱️ Tiempo UMAP", f"{t_umap:.2f}s")
+            st.markdown(
+                '<div class="callout-purple">🚀 UMAP preserva la <strong>estructura global</strong>: '
+                'la posición relativa de los clusters tiene sentido.</div>',
+                unsafe_allow_html=True)
+
+        with col_t:
+            with st.spinner("Ejecutando t-SNE..."):
+                t0 = time.time()
+                Xt = apply_tsne(X_vs, perplexity=30, n_iter=500)
+                t_tsne = time.time() - t0
+            fig_t = scatter_2d(Xt, y_vs, title="t-SNE (perp=30)",
+                               x_label="Dim 1", y_label="Dim 2")
+            fig_t.update_layout(height=330, showlegend=False,
+                                margin=dict(l=10, r=10, t=40, b=20))
+            st.plotly_chart(fig_t, use_container_width=True)
+            st.metric("⏱️ Tiempo t-SNE", f"{t_tsne:.2f}s")
+            st.markdown(
+                '<div class="callout-yellow">⚠️ t-SNE produce clusters más compactos, '
+                'pero la posición relativa entre ellos <strong>no es interpretable</strong>.'
+                '</div>', unsafe_allow_html=True)
+
+        speedup = t_tsne / max(t_umap, 0.001)
+        st.success(f"⚡ UMAP fue **{speedup:.1f}× más rápido** que t-SNE en este dataset.")
+    else:
+        st.info("👆 Pulsa el botón para lanzar la comparativa en vivo")
+
+    st.divider()
+
+    # ── Métricas de calidad ───────────────────────────────────────────────
+    st.markdown("## 📏 Calidad del embedding UMAP")
+
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.model_selection import cross_val_score
+
+    col_q1, col_q2 = st.columns(2)
+    with col_q1:
+        st.markdown("### 🎯 Preservación de estructura")
+        st.markdown(
+            "KNN en el espacio reducido. Si UMAP preservó la estructura, "
+            "los puntos de la misma clase seguirán cerca."
+        )
+        try:
+            knn = KNeighborsClassifier(n_neighbors=5)
+            y_num = np.array([list(np.unique(y)).index(yi) for yi in y])
+            scores = cross_val_score(knn, X_umap, y_num, cv=5, scoring="accuracy")
+            acc = scores.mean() * 100
+            st.markdown(
+                f'<div class="big-metric"><div class="val">{acc:.1f}%</div>'
+                f'<div class="lbl">Precisión KNN-5 en espacio UMAP (CV-5)</div></div>',
+                unsafe_allow_html=True)
+            if acc >= 90:
+                st.success("✅ Excelente preservación de estructura")
+            elif acc >= 70:
+                st.info("👍 Buena preservación — prueba ajustando n_neighbors")
+            else:
+                st.warning("⚠️ Prueba con n_neighbors=15 y min_dist=0.1")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+    with col_q2:
+        st.markdown("### 📊 Compacidad de clusters")
+        try:
+            unique_labels = np.unique(y)
+            intra_dists = []
+            centroids = []
+            for lbl in unique_labels:
+                pts = X_umap[y == lbl]
+                centroid = pts.mean(axis=0)
+                centroids.append(centroid)
+                intra_dists.append(np.mean(np.linalg.norm(pts - centroid, axis=1)))
+
+            centroids = np.array(centroids)
+            inter_dist = 0.0
+            count = 0
+            for i in range(len(centroids)):
+                for j in range(i + 1, len(centroids)):
+                    inter_dist += np.linalg.norm(centroids[i] - centroids[j])
+                    count += 1
+            inter_dist /= max(count, 1)
+
+            col_m1, col_m2 = st.columns(2)
+            col_m1.metric("Distancia intra-cluster (media)", f"{np.mean(intra_dists):.2f}")
+            col_m2.metric("Distancia inter-cluster (media)", f"{inter_dist:.2f}")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — QUIZ
+# ══════════════════════════════════════════════════════════════════════════════
 with tab3:
-    st.markdown('<p class="section-label">Test yourself</p>', unsafe_allow_html=True)
-    st.markdown("## 🧠 Quiz — check your understanding")
+    st.markdown('<p class="section-label">Comprueba lo que sabes</p>', unsafe_allow_html=True)
+    st.markdown("## 🧠 Quiz — pon a prueba tu comprensión de UMAP")
+    st.markdown("4 preguntas con feedback inmediato y explicación detallada.")
     st.markdown("---")
 
-    questions = [
+    preguntas = [
         {
-            "q": "What is the main advantage of UMAP over t-SNE for ML pipelines?",
+            "q": "¿Qué concepto matemático es fundamental en UMAP pero no en PCA ni t-SNE?",
             "opts": [
-                "UMAP always produces more beautiful visualisations",
-                "UMAP can transform new, unseen data points with .transform()",
-                "UMAP is always more accurate than t-SNE",
-                "UMAP requires no parameters at all",
+                "La descomposición en valores singulares (SVD)",
+                "La topología y los grafos difusos (fuzzy graphs)",
+                "Las distribuciones gaussianas multivariantes",
+                "La regresión lineal por mínimos cuadrados",
             ],
             "ans": 1,
-            "exp": "UMAP learns a proper mapping function, so it can **project new data** "
-                   "with `.transform()`. This is essential for production ML pipelines "
-                   "where new samples arrive after training.",
+            "exp": "UMAP se basa en **topología algebraica** y representa los datos como "
+                   "un **grafo difuso** (fuzzy simplicial complex). Esto le permite capturar "
+                   "la forma topológica de los datos y es lo que lo diferencia fundamentalmente "
+                   "de PCA (lineal-algebraico) y t-SNE (estadístico-probabilístico).",
         },
         {
-            "q": "What happens when you increase `n_neighbors` in UMAP?",
+            "q": "¿Cuál es la principal ventaja de UMAP sobre t-SNE?",
             "opts": [
-                "The algorithm focuses on finer local structure and clusters fragment",
-                "The algorithm gains a broader global view and clusters become more coherent",
-                "Points are placed closer together on the map",
-                "The algorithm ignores all distances",
-            ],
-            "ans": 1,
-            "exp": "More neighbours means each point has a **wider view** of the data space, "
-                   "which emphasises global structure. Fewer neighbours → fine local detail.",
-        },
-        {
-            "q": "What does `min_dist = 0.0` do in UMAP?",
-            "opts": [
-                "Points are spread as uniformly as possible across the 2D map",
-                "The algorithm ignores all local structure",
-                "Points are packed as tightly as possible, creating very compact clusters",
-                "UMAP becomes identical to PCA",
+                "UMAP siempre produce clusters más compactos visualmente",
+                "UMAP es más antiguo y por tanto más probado",
+                "UMAP es más rápido y puede transformar datos nuevos con .transform()",
+                "UMAP no requiere fijar ningún parámetro",
             ],
             "ans": 2,
-            "exp": "`min_dist = 0.0` allows points to be placed right on top of each other "
-                   "in the 2D map, creating **ultra-compact, dense clusters**. "
-                   "Higher values spread points out more.",
+            "exp": "UMAP tiene **dos ventajas clave** sobre t-SNE: es mucho más rápido "
+                   "(escala mejor con el tamaño del dataset) y puede transformar datos nuevos "
+                   "usando `.transform()`. Esto lo hace útil como preprocesamiento en "
+                   "pipelines de Machine Learning reales.",
         },
         {
-            "q": "What mathematical concept does UMAP use to model data structure?",
+            "q": "Si aumentas mucho n_neighbors en UMAP, ¿qué efecto esperas?",
             "opts": [
-                "Covariance matrices (like PCA)",
-                "Decision trees",
-                "Manifolds — lower-dimensional surfaces embedded in high-dimensional space",
-                "Neural networks",
+                "Los clusters se fragmentan en muchos sub-clusters",
+                "El algoritmo se vuelve determinista sin necesidad de random_state",
+                "El embedding preserva más estructura global y los clusters se conectan más",
+                "Los puntos se distribuyen uniformemente sin estructura visible",
             ],
             "ans": 2,
-            "exp": "UMAP assumes data lies on a **manifold** and uses fuzzy topological "
-                   "representations and Riemannian geometry to build the neighbourhood graph. "
-                   "This is what makes it so powerful for non-linear data.",
+            "exp": "Un **n_neighbors alto** (50-200) significa que cada punto considera "
+                   "muchos vecinos, lo que da a UMAP una visión más 'global' de los datos. "
+                   "El resultado son clusters más grandes y conectados que reflejan la "
+                   "estructura a gran escala del dataset.",
+        },
+        {
+            "q": "¿Qué es un 'manifold' en el contexto de UMAP?",
+            "opts": [
+                "Un tipo de gráfico para visualizar eigenvalues",
+                "El número máximo de dimensiones que puede manejar UMAP",
+                "Una superficie de baja dimensión 'enrollada' dentro de un espacio de alta dimensión",
+                "El parámetro que controla la compacidad de los clusters",
+            ],
+            "ans": 2,
+            "exp": "Un **manifold** es una superficie que localmente parece plana pero "
+                   "globalmente puede ser curva. La Tierra es un manifold 2D en un espacio 3D. "
+                   "UMAP asume que los datos de alta dimensión viven en un manifold de baja "
+                   "dimensión y lo 'desenrolla' para visualizarlo en 2D.",
         },
     ]
 
-    for i, item in enumerate(questions):
-        st.markdown(f"**Question {i+1} of {len(questions)}:** {item['q']}")
+    score = 0
+    answered = 0
+    for i, item in enumerate(preguntas):
+        st.markdown(f"**Pregunta {i+1} de {len(preguntas)}:** {item['q']}")
         choice = st.radio("", item["opts"], key=f"umap_q{i}", index=None)
         if choice is not None:
+            answered += 1
             if item["opts"].index(choice) == item["ans"]:
-                st.success(f"✅ Correct! {item['exp']}")
-            else:
-                correct = item["opts"][item["ans"]]
-                st.error(f"❌ Not quite. Correct answer: **{correct}**\n\n{item['exp']}")
-        st.markdown("---")
-
-tab1, tab2, tab3 = st.tabs(["📖 ¿Cómo funciona?", "🎯 Demo interactiva", "🧠 Quiz"])
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab1:
-    st.markdown("## UMAP vs t-SNE — hermanos, pero distintos")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(
-            """
-            ### ¿Qué es un manifold?
-            Un **manifold** (variedad) es una superficie de menor dimensión
-            "enrollada" dentro de un espacio de alta dimensión.
-
-            Por ejemplo: la superficie de una pelota es un manifold 2D viviendo
-            en un espacio 3D.
-
-            UMAP asume que tus datos **viven en un manifold** y trata de
-            "desenrollarlo" para verlo en 2D.
-
-            ### Los pasos simplificados:
-            1. **Construye un grafo de vecindad**: conecta cada punto con sus
-               `n_neighbors` vecinos más cercanos.
-            2. **Asigna pesos** a las conexiones según la distancia.
-            3. **Optimiza un layout 2D** que preserve esas conexiones.
-            """
-        )
-        st.success(
-            "✅ **Ventaja clave frente a t-SNE:** UMAP **sí puede transformar "
-            "nuevos datos** (tiene `transform()`), es mucho más rápido y "
-            "preserva mejor la estructura global."
-        )
-
-    with col2:
-        st.markdown("### Comparativa rápida")
-        import pandas as pd
-        df_comp = pd.DataFrame({
-            "Característica": [
-                "Velocidad", "Estructura global", "Estructura local",
-                "Transformar nuevos datos", "Reproducibilidad", "Escalabilidad"
-            ],
-            "PCA": ["⚡⚡⚡", "✅✅✅", "❌", "✅", "✅✅✅", "✅✅✅"],
-            "t-SNE": ["⚡", "⚠️", "✅✅✅", "❌", "⚠️", "⚡"],
-            "UMAP": ["⚡⚡", "✅✅", "✅✅", "✅", "✅✅", "✅✅"],
-        })
-        st.dataframe(df_comp, use_container_width=True, hide_index=True)
-
-        st.markdown("### Parámetros clave")
-        st.markdown(
-            """
-            <style>
-            .param-card { background: #1E1E2E; border-radius: 8px; padding: 1rem;
-                          border-left: 3px solid #FF6B6B; margin-bottom: .8rem; }
-            </style>
-            <div class="param-card">
-                <b style="color:#FF6B6B">n_neighbors</b><br>
-                Número de vecinos del grafo. Bajo → estructura local.
-                Alto → estructura global.<br>
-                <small>💡 Recomendado: 5-50. Típico: 15.</small>
-            </div>
-            <div class="param-card">
-                <b style="color:#FF6B6B">min_dist</b><br>
-                Distancia mínima entre puntos en el mapa 2D.
-                Bajo → puntos muy juntos (clusters compactos).
-                Alto → distribución uniforme.<br>
-                <small>💡 Recomendado: 0.0 – 0.9. Típico: 0.1.</small>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab2:
-    st.markdown("## 🎯 Experimenta con UMAP")
-    st.markdown(
-        "⏱️ *UMAP es más rápido que t-SNE pero puede tardar unos segundos en datasets grandes.*"
-    )
-
-    col_cfg, col_plot = st.columns([1, 2])
-    with col_cfg:
-        dataset_name = st.selectbox(
-            "Dataset", ["Iris 🌸", "Vino 🍷", "Dígitos ✏️"], key="umap_ds"
-        )
-        n_neighbors = st.slider(
-            "n_neighbors (vecinos)", min_value=2, max_value=100, value=15, step=1, key="umap_nn"
-        )
-        min_dist = st.slider(
-            "min_dist", min_value=0.0, max_value=0.99, value=0.1, step=0.05, key="umap_md"
-        )
-        run_btn = st.button("▶️ Ejecutar UMAP", type="primary", key="umap_run")
-
-    X, y, _, desc = load_dataset(dataset_name)
-    st.info(desc)
-
-    cache_key = (dataset_name, n_neighbors, min_dist)
-    if run_btn or "umap_result" not in st.session_state or st.session_state.get("umap_cfg") != cache_key:
-        with st.spinner("Calculando UMAP… 🗺️"):
-            X_umap = apply_umap(X, n_neighbors=n_neighbors, min_dist=min_dist)
-            st.session_state["umap_result"] = (X_umap, y)
-            st.session_state["umap_cfg"] = cache_key
-
-    X_umap, y_stored = st.session_state["umap_result"]
-    with col_plot:
-        fig = scatter_2d(
-            X_umap, y_stored,
-            title=f"UMAP — {dataset_name} (n_neighbors={n_neighbors}, min_dist={min_dist})",
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("### 💬 ¿Qué observas?")
-    st.markdown(
-        """
-        - Con **min_dist = 0.0**: los clusters son muy compactos y densos.
-        - Con **min_dist = 0.9**: los puntos se distribuyen más uniformemente.
-        - Con **n_neighbors bajo (2-5)**: la estructura local domina, los grupos se fragmentan.
-        - Con **n_neighbors alto (50-100)**: visión más global, grupos más grandes.
-        """
-    )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with tab3:
-    st.markdown("## 🧠 Comprueba lo que has aprendido")
-
-    questions = [
-        {
-            "q": "¿Cuál es la principal ventaja de UMAP sobre t-SNE para pipelines de ML?",
-            "opts": [
-                "UMAP produce visualizaciones más bonitas",
-                "UMAP puede transformar nuevos datos no vistos durante el entrenamiento",
-                "UMAP siempre es más preciso que t-SNE",
-                "UMAP no requiere ningún parámetro",
-            ],
-            "ans": 1,
-            "exp": "UMAP aprende una función de transformación, por lo que **puede proyectar "
-                   "nuevos datos** con `.transform()`. Esto lo hace útil en pipelines de ML reales.",
-        },
-        {
-            "q": "¿Qué efecto tiene aumentar `n_neighbors` en UMAP?",
-            "opts": [
-                "El algoritmo ve más estructura local y los clusters se fragmentan",
-                "El algoritmo ve más estructura global y los clusters son más coherentes",
-                "Los puntos se colocan más juntos",
-                "El algoritmo ignora las distancias",
-            ],
-            "ans": 1,
-            "exp": "Con más vecinos, cada punto tiene una visión más **global** del espacio, "
-                   "lo que preserva mejor la estructura de alto nivel.",
-        },
-        {
-            "q": "¿Qué concepto matemático usa UMAP para modelar la estructura de los datos?",
-            "opts": [
-                "Matrices de covarianza",
-                "Árboles de decisión",
-                "Manifolds (variedades topológicas)",
-                "Redes neuronales",
-            ],
-            "ans": 2,
-            "exp": "UMAP asume que los datos viven en un **manifold** de menor dimensión "
-                   "y usa geometría Riemanniana y teoría de categorías para construir el mapa.",
-        },
-    ]
-
-    for i, item in enumerate(questions):
-        st.markdown(f"**Pregunta {i+1}:** {item['q']}")
-        choice = st.radio("", item["opts"], key=f"umap_q{i}", index=None)
-        if choice is not None:
-            if item["opts"].index(choice) == item["ans"]:
+                score += 1
                 st.success(f"✅ ¡Correcto! {item['exp']}")
             else:
-                st.error(f"❌ No exactamente. {item['exp']}")
+                correcta = item["opts"][item["ans"]]
+                st.error(f"❌ No del todo. La respuesta correcta es: **{correcta}**\n\n{item['exp']}")
         st.markdown("---")
+
+    if answered == len(preguntas):
+        pct = int(score / len(preguntas) * 100)
+        if pct == 100:
+            st.balloons()
+            st.success(f"🏆 ¡Perfecto! {score}/{len(preguntas)} — ¡Dominas UMAP!")
+        elif pct >= 50:
+            st.info(f"👍 Bien: {score}/{len(preguntas)}. Repasa las explicaciones y vuelve a intentarlo.")
+        else:
+            st.warning(f"📚 {score}/{len(preguntas)}. Vuelve a la pestaña '¿Cómo funciona?' con atención.")
