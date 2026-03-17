@@ -36,6 +36,18 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .big-metric .lbl { font-size:.85rem; color:#9CA3AF; margin-top:.2rem; }
 .vs-table td { padding: .4rem .8rem; font-size:.9rem; }
 .vs-table th { padding: .4rem .8rem; font-size:.9rem; color:#A78BFA; }
+.read-box {
+    background: #160d2e; border: 1px solid #5b21b6;
+    border-left: 5px solid #A78BFA; border-radius: 10px;
+    padding: 1rem 1.3rem; margin-top: .6rem; margin-bottom: .8rem;
+}
+.read-box .read-title {
+    color: #c4b5fd; font-weight: 700; font-size: .82rem;
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: .5rem;
+}
+.read-box ul { margin: 0; padding-left: 1.2rem; }
+.read-box li { color: #ddd6fe; font-size: .9rem; line-height: 1.65; margin-bottom: .2rem; }
+.read-box li strong { color: #c4b5fd; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -143,6 +155,20 @@ y usa matemáticas de grafos y topología para "aplanar" esa superficie.
                 bgcolor="#0e1117"),
             margin=dict(l=0, r=0, t=40, b=0))
         st.plotly_chart(fig_manifold, use_container_width=True)
+
+        st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo leer el gráfico del rollo suizo</div>'
+            '<ul>'
+            '<li>Este es un objeto 3D interactivo — puedes rotarlo con el ratón. Muestra puntos que viven en la <strong>superficie de un rollo de papel</strong> (como el papel de cocina), no en el interior.</li>'
+            '<li>El <strong>color de cada punto</strong> indica su posición en el rollo: desde un extremo (morado) hasta el otro (amarillo). Es una gradación continua.</li>'
+            '<li>El rollo existe en 3D, pero su "naturaleza real" es 2D — si lo desenrollaras, tendrías una hoja plana con los colores en orden.</li>'
+            '<li>UMAP haría exactamente eso: <strong>detectar que la estructura real es 2D</strong> y "desenrollar" el rollo para que los puntos queden en un plano, con los colores formando una banda continua de izquierda a derecha.</li>'
+            '<li>PCA, al ser lineal, no podría desenrollar esto: simplemente "aplastaría" el rollo y mezclaría los colores.</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
         st.markdown(
             '<div class="callout-blue">💡 UMAP detectaría que estos puntos viven en '
@@ -297,6 +323,20 @@ with tab2:
             y_label="UMAP 2")
         st.plotly_chart(fig_umap, use_container_width=True)
 
+        st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo leer este gráfico UMAP</div>'
+            '<ul>'
+            '<li>Cada <strong>punto es una muestra</strong> del dataset. El <strong>color es su clase real</strong>, no algo que UMAP calculó — es la etiqueta que ya existía en los datos.</li>'
+            '<li><strong>Puntos del mismo color agrupados</strong> = UMAP encontró que esas muestras son similares en el espacio original.</li>'
+            '<li>A diferencia de t-SNE, en UMAP la <strong>posición relativa entre grupos sí importa</strong>: si dos clusters están más cerca entre sí que de un tercero, es porque en los datos originales también son más similares entre ellos.</li>'
+            '<li>Los ejes "UMAP 1" y "UMAP 2" no tienen unidades físicas interpretables — son coordenadas del mapa 2D. Lo que importa son las <strong>distancias relativas</strong>.</li>'
+            '<li>Prueba a cambiar <strong>n_neighbors</strong> (izquierda): valores bajos fragmentan los grupos; valores altos los fusionan. Prueba <strong>min_dist</strong>: valores altos esparcen los puntos, bajos los compactan.</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
         n_clusters = len(np.unique(y))
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Dimensiones originales", X.shape[1])
@@ -353,6 +393,20 @@ with tab2:
 
         speedup = t_tsne / max(t_umap, 0.001)
         st.success(f"⚡ UMAP fue **{speedup:.1f}× más rápido** que t-SNE en este dataset.")
+
+        st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo comparar los dos gráficos lado a lado</div>'
+            '<ul>'
+            '<li>Ambos gráficos muestran <strong>exactamente las mismas muestras con los mismos colores</strong>, pero proyectadas con dos algoritmos distintos.</li>'
+            '<li><strong>UMAP (izquierda)</strong>: los clusters tienden a mantener su posición relativa. Si el grupo morado está siempre cerca del verde, es porque esos dos grupos son más similares entre sí que al azul.</li>'
+            '<li><strong>t-SNE (derecha)</strong>: los clusters pueden aparecer en posiciones completamente diferentes cada vez que se ejecuta. Su posición es arbitraria, pero su forma interna es fiable.</li>'
+            '<li>Fíjate en el <strong>tiempo de ejecución</strong>: UMAP suele ser notablemente más rápido, especialmente con datasets más grandes.</li>'
+            '<li>No hay un "ganador" absoluto: si necesitas visualizar clusters rápidamente con estructura global visible → UMAP. Si necesitas clusters ultra-compactos → t-SNE.</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     else:
         st.info("👆 Pulsa el botón para lanzar la comparativa en vivo")
 

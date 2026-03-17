@@ -22,8 +22,11 @@ def load_dataset(name: str):
         df["etiqueta"] = [data.target_names[i] for i in data.target]
         df["clase"] = data.target
         desc = (
-            "**Iris** contiene medidas de 150 flores de 3 especies distintas. "
-            "Tiene **4 características** (largo/ancho de sépalo y pétalo)."
+            "📦 **Dataset Iris** (botánica, 1936) — "
+            "150 flores · 4 dimensiones · 3 especies · "
+            "Origen: estudio de Ronald Fisher. "
+            "Variables: largo/ancho de sépalo y pétalo (cm). "
+            "Ideal para aprender: Setosa es fácilmente separable de las otras dos especies."
         )
     elif name == "Vino 🍷":
         data = load_wine()
@@ -31,8 +34,11 @@ def load_dataset(name: str):
         df["etiqueta"] = [data.target_names[i] for i in data.target]
         df["clase"] = data.target
         desc = (
-            "**Vino** contiene análisis químicos de 178 vinos de 3 productores italianos. "
-            "Tiene **13 características** (alcohol, acidez, color, etc.)."
+            "📦 **Dataset Vino** (química, Italia) — "
+            "178 muestras · 13 dimensiones · 3 productores · "
+            "Origen: análisis químicos de vinos de Barolo, Italia (UCI ML Repository). "
+            "Variables: alcohol, acidez, fenoles, color, magnesio y 8 más. "
+            "Interesante porque muchas variables están correlacionadas entre sí."
         )
     elif name == "Dígitos ✏️":
         data = load_digits()
@@ -41,8 +47,11 @@ def load_dataset(name: str):
         df["etiqueta"] = data.target.astype(str)
         df["clase"] = data.target
         desc = (
-            "**Dígitos** son imágenes 8×8 de números escritos a mano (0-9). "
-            "Cada imagen tiene **64 píxeles** como características."
+            "📦 **Dataset Dígitos** (visión por computador) — "
+            "1.797 imágenes · 64 dimensiones · 10 dígitos (0–9) · "
+            "Origen: imágenes de dígitos escritos a mano, escaneadas en cuadrículas 8×8 píxeles. "
+            "Cada píxel es una dimensión (valor 0–16). "
+            "El más impresionante: 64 dimensiones → 2D con grupos perfectamente separados."
         )
     else:
         raise ValueError(f"Dataset desconocido: {name}")

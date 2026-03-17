@@ -36,6 +36,18 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .big-metric .lbl { font-size:.85rem; color:#9CA3AF; margin-top:.2rem; }
 .perp-card { background:#1E1E2E; border-radius:10px; padding:1rem;
     border-left:4px solid; text-align:center; }
+.read-box {
+    background: #0a1a2e; border: 1px solid #0e4d8a;
+    border-left: 5px solid #38BDF8; border-radius: 10px;
+    padding: 1rem 1.3rem; margin-top: .6rem; margin-bottom: .8rem;
+}
+.read-box .read-title {
+    color: #7dd3fc; font-weight: 700; font-size: .82rem;
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: .5rem;
+}
+.read-box ul { margin: 0; padding-left: 1.2rem; }
+.read-box li { color: #bae6fd; font-size: .9rem; line-height: 1.65; margin-bottom: .2rem; }
+.read-box li strong { color: #7dd3fc; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -155,6 +167,19 @@ para que esos grupos queden a la vista.
         st.plotly_chart(fig_spiral, use_container_width=True)
 
         st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo leer este gráfico de espirales</div>'
+            '<ul>'
+            '<li>Este gráfico muestra datos que tienen una <strong>estructura curva</strong>: dos espirales entrelazadas, una azul y una rosa.</li>'
+            '<li>Si aplicaras PCA, trazaría una línea recta como eje y <strong>mezclaría los dos colores</strong>: no podría distinguir las espirales porque PCA solo hace cortes rectos.</li>'
+            '<li>t-SNE <strong>detecta que los puntos del mismo color son vecinos entre sí</strong> aunque la espiral se curve, y los coloca juntos en el mapa 2D.</li>'
+            '<li>Este ejemplo ilustra por qué t-SNE es superior a PCA para datos con <strong>estructuras no lineales</strong> (curvas, anillos, nubes irregulares).</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
             '<div class="callout-blue">💡 En un dataset real de alta dimensión, '
             'los datos pueden tener esta misma estructura curva y t-SNE la detecta. '
             'PCA simplemente la "aplana" y pierde esa información.</div>',
@@ -247,6 +272,19 @@ La distribución t con colas gruesas resuelve esto:
             margin=dict(l=20, r=20, t=40, b=30))
         st.plotly_chart(fig_dist, use_container_width=True)
 
+        st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo leer este gráfico de distribuciones</div>'
+            '<ul>'
+            '<li>El eje horizontal representa la <strong>distancia</strong> entre dos puntos. El eje vertical, la <strong>probabilidad</strong> de que esa distancia sea "normal" según cada distribución.</li>'
+            '<li>La <strong>curva azul (Gaussiana)</strong> cae rápido: asigna probabilidad casi cero a distancias mayores de ±2. Muy "estrecha".</li>'
+            '<li>La <strong>curva rosa (t de Student)</strong> tiene las "colas" mucho más anchas: sigue asignando algo de probabilidad a distancias grandes. Por eso se dice que tiene <strong>colas más gruesas</strong>.</li>'
+            '<li>En t-SNE se usa la curva rosa en el espacio 2D: esto hace que los puntos que no son vecinos cercanos <strong>se empujen más hacia afuera</strong>, creando los clusters bien separados y compactos que caracterizan a t-SNE.</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
     st.divider()
 
     # ── Cuándo usar ────────────────────────────────────────────────────────
@@ -311,6 +349,20 @@ with tab2:
             y_label="Dimensión t-SNE 2")
         st.plotly_chart(fig_tsne, use_container_width=True)
 
+        st.markdown(
+            '<div class="read-box">'
+            '<div class="read-title">📖 Cómo leer este gráfico t-SNE</div>'
+            '<ul>'
+            '<li>Cada <strong>punto es una muestra</strong> (flor, vino, imagen). El <strong>color es su clase real</strong> (especie, productor, dígito).</li>'
+            '<li><strong>Puntos del mismo color agrupados</strong> = t-SNE ha encontrado que esas muestras son similares entre sí en el espacio original de alta dimensión.</li>'
+            '<li>Los <strong>ejes no tienen unidades interpretables</strong>: "Dimensión t-SNE 1" y "Dimensión t-SNE 2" no representan ninguna variable real. Son simplemente coordenadas en el mapa 2D.</li>'
+            '<li><strong>⚠️ Importante:</strong> la distancia ENTRE grupos (clusters) no tiene significado. Que dos grupos estén cerca o lejos en este mapa no dice si son parecidos entre sí. Solo la distancia DENTRO de un grupo es interpretable.</li>'
+            '<li>Si ves nubes de colores bien separadas → buena separación. Si los colores se mezclan → esas clases son difíciles de distinguir incluso para t-SNE.</li>'
+            '</ul>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
         n_clusters = len(np.unique(y))
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Dimensiones originales", X.shape[1])
@@ -349,6 +401,20 @@ with tab2:
                     st.caption("⚠️ Clusters grandes — puede perder detalle local")
     else:
         st.info("👆 Pulsa el botón para generar la comparativa (tarda ~20 segundos)")
+
+    st.markdown(
+        '<div class="read-box">'
+        '<div class="read-title">📖 Cómo leer la comparativa de perplejidades</div>'
+        '<ul>'
+        '<li>Los tres gráficos muestran <strong>exactamente los mismos datos</strong>, procesados con tres valores distintos del parámetro "perplejidad".</li>'
+        '<li>Con <strong>perplejidad baja (5)</strong>: cada punto solo mira a sus 5 vecinos más cercanos. Resultado: muchos grupos pequeños y dispersos. Pueden aparecer estructuras que son artefactos, no datos reales.</li>'
+        '<li>Con <strong>perplejidad media (30)</strong>: balance entre detalles locales y estructura global. Es el valor más recomendado para comenzar.</li>'
+        '<li>Con <strong>perplejidad alta (80)</strong>: cada punto considera a muchos vecinos. Los grupos se "fusionan" y se pierde el detalle interno.</li>'
+        '<li><strong>Conclusión práctica:</strong> si ves algo interesante en el mapa, verifica que aparezca también con al menos dos valores distintos de perplejidad. Si solo aparece con uno, puede ser un artefacto.</li>'
+        '</ul>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     st.divider()
 
