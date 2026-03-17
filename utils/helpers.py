@@ -64,7 +64,7 @@ def apply_tsne(X: np.ndarray, perplexity: int = 30, n_iter: int = 1000) -> np.nd
     tsne = TSNE(
         n_components=2,
         perplexity=perplexity,
-        n_iter=n_iter,
+        max_iter=n_iter,
         random_state=42,
         init="pca",
     )

@@ -148,10 +148,4 @@ La aplicación se abrirá automáticamente en `http://localhost:8501` 🎉
 
 ---
 
-## 📝 Licencia
-
-Este proyecto está bajo la licencia MIT. Puedes usarlo, modificarlo y distribuirlo libremente.
-
----
-
 <p align="center">Hecho con ❤️ para hacer el Machine Learning accesible a todos</p>

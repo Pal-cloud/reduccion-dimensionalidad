@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "▶️ Lanzar App Streamlit",
+			"type": "shell",
+			"command": "C:/Users/Coder/AppData/Local/Programs/Python/Python314/python.exe -m streamlit run Inicio.py",
+			"isBackground": true,
+			"group": "build",
+			"problemMatcher": []
+		}
+	]
+}
