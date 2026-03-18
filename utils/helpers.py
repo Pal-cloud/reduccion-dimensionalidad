@@ -145,23 +145,37 @@ def scatter_3d(X_3d: np.ndarray, labels: np.ndarray, title: str) -> go.Figure:
 
 
 def _logo_base64() -> str:
-    """Devuelve el logo personal codificado en base64 para embeber en HTML."""
-    logo_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "assets", "images", "logo-pal.png",
-    )
-    if not os.path.exists(logo_path):
-        return ""
-    with open(logo_path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    """Devuelve el logo personal codificado en base64 para embeber en HTML.
+
+    Prueba varias rutas candidatas para ser compatible con ejecución local,
+    Streamlit Cloud (/mount/src/...) y cualquier otro entorno.
+    """
+    candidates = [
+        # 1) Relativo al propio helpers.py  →  utils/../assets/images/
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "assets", "images", "logo-pal.png"),
+        # 2) Relativo al directorio de trabajo actual (Streamlit Cloud usa cwd = repo root)
+        os.path.join(os.getcwd(), "assets", "images", "logo-pal.png"),
+        # 3) Ruta hardcoded conocida en Streamlit Cloud
+        "/mount/src/reduccion-dimensionalidad/assets/images/logo-pal.png",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    return ""
 
 
 def render_watermark(opacity: float = 0.55, size_px: int = 72) -> None:
     """Inyecta el logo personal como marca de agua fija en la esquina inferior derecha.
 
     Llama esta función UNA vez por página, justo después de st.set_page_config().
+    Si el logo no se encuentra o hay cualquier error, falla silenciosamente.
     """
-    b64 = _logo_base64()
+    try:
+        b64 = _logo_base64()
+    except Exception:
+        return
     if not b64:
         return
     st.markdown(
