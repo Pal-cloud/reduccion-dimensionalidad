@@ -11,6 +11,7 @@ from sklearn.datasets import load_breast_cancer
 import traceback
 import io
 import contextlib
+import re as _re
 
 st.set_page_config(
     page_title="Ejercicio Práctico — Breast Cancer",
@@ -103,8 +104,12 @@ y     = bc.target        # 0 = maligno, 1 = benigno
 feat  = bc.feature_names
 
 # ── Ejecutor de código seguro ─────────────────────────────────────────────────
-def run_user_code(code: str, extra: dict = {}) -> tuple:
-    """Ejecuta el código del usuario. Devuelve (stdout, error_str, locals_dict)."""
+def _has_blanks(code: str) -> bool:
+    """True si quedan ___ sin rellenar (exactamente 3 guiones bajos)."""
+    return bool(_re.search(r'(?<![_\w])___(?![_\w])', code))
+
+def _run(code: str, extra: dict = {}) -> tuple:
+    """Ejecuta código. Devuelve (stdout, error_str, locals_dict)."""
     local_ns: dict = {}
     buf = io.StringIO()
     globs = {
@@ -119,6 +124,17 @@ def run_user_code(code: str, extra: dict = {}) -> tuple:
         return buf.getvalue(), "", local_ns
     except Exception:
         return buf.getvalue(), traceback.format_exc(), local_ns
+
+def run_user_code(code: str, solution: str, extra: dict = {}) -> tuple:
+    """Ejecuta el código del usuario o la solución si hay ___ sin rellenar.
+
+    Devuelve (stdout, error_str, locals_dict, used_solution: bool).
+    """
+    if _has_blanks(code):
+        stdout, err, lns = _run(solution, extra)
+        return stdout, err, lns, True   # <-- solución automática
+    stdout, err, lns = _run(code, extra)
+    return stdout, err, lns, False      # <-- código del usuario
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CABECERA
@@ -244,22 +260,25 @@ print(f"Media '{feat[0]}' — benignos: {var0[y==___].mean():.2f}")
         height=220, key="code_e0",
     )
 
+    _SOL_E0 = """\
+print("Shape de X:", X.shape)
+print("Malignos (y==0):", (y == 0).sum())
+print("Benignos (y==1):", (y == 1).sum())
+var0 = X_raw[:, 0]
+print(f"Media '{feat[0]}' — malignos: {var0[y==0].mean():.2f}")
+print(f"Media '{feat[0]}' — benignos: {var0[y==1].mean():.2f}")
+"""
     if st.button("▶ Ejecutar", key="run_e0", type="primary"):
-        stdout, err, _ = run_user_code(code_e0)
+        stdout, err, _, used_sol = run_user_code(code_e0, solution=_SOL_E0)
         if err:
-            st.error("**Error:**\n```\n" + err + "\n```")
+            st.error("Error inesperado — revisa el código:\n```\n" + err + "\n```")
         else:
-            st.success("✅ Correcto")
+            if used_sol:
+                st.info("💡 Aún hay huecos sin rellenar — aquí tienes el resultado correcto:")
+            else:
+                st.success("✅ ¡Correcto! Tu código funciona perfectamente.")
             if stdout:
                 st.code(stdout, language="text")
-            st.markdown(
-                '<div class="hint-box">'
-                '💡 Deberías ver: shape (569, 30) · 212 malignos · 357 benignos · '
-                'radio medio ~17.5 en malignos vs ~12.1 en benignos. '
-                'Esa diferencia de ~44% explica por qué PCA separa tan bien las clases.'
-                '</div>',
-                unsafe_allow_html=True,
-            )
 
     st.markdown(
         '<div class="respuesta-box">'
@@ -324,53 +343,60 @@ print("Shape de Xp:", Xp.___)    # shape
         height=240, key="code_p1",
     )
 
+    _SOL_P1 = """\
+pca = PCA(n_components=2, random_state=42)
+Xp  = pca.fit_transform(X)
+evr = pca.explained_variance_ratio_
+print(f"CP1: {evr[0]*100:.1f}%")
+print(f"CP2: {evr[1]*100:.1f}%")
+print(f"Total 2 componentes: {(evr[0]+evr[1])*100:.1f}%")
+print("Shape de Xp:", Xp.shape)
+"""
     run_p1 = st.button("▶ Ejecutar y graficar", key="run_p1", type="primary")
 
-    if run_p1 or "pca_Xp" in st.session_state:
-        stdout, err, lns = run_user_code(code_p1)
+    if run_p1:
+        stdout, err, lns, used_sol = run_user_code(code_p1, solution=_SOL_P1)
         if err:
-            st.error("**Error:**\n```\n" + err + "\n```")
-            st.info("💡 Revisa que hayas reemplazado todos los `___`.")
+            st.error("Error inesperado — revisa el código:\n```\n" + err + "\n```")
         else:
-            if "Xp" in lns:
-                st.session_state["pca_Xp"] = lns["Xp"]
-                st.session_state["pca_evr"] = lns["evr"]
+            if used_sol:
+                st.info("💡 Aún hay huecos sin rellenar — aquí tienes el resultado correcto:")
+            else:
+                st.success("✅ ¡Correcto! Tu código funciona perfectamente.")
             if stdout:
                 st.code(stdout, language="text")
+            if "Xp" in lns:
+                st.session_state["pca_Xp"]  = lns["Xp"]
+                st.session_state["pca_evr"] = lns["evr"]
 
-            Xp_s = st.session_state.get("pca_Xp")
-            evr_s = st.session_state.get("pca_evr")
-            if Xp_s is not None and evr_s is not None:
-                fig1 = go.Figure()
-                for cls, label, col in [(0, "Maligno", "#FF6B6B"),
-                                        (1, "Benigno", "#10B981")]:
-                    m = y == cls
-                    fig1.add_trace(go.Scatter(
-                        x=Xp_s[m, 0], y=Xp_s[m, 1], mode="markers", name=label,
-                        marker=dict(color=col, size=7, opacity=0.82,
-                                    line=dict(width=0.4, color="white")),
-                    ))
-                fig1.update_layout(
-                    template="plotly_dark", height=420,
-                    xaxis_title=f"CP1 — {evr_s[0]*100:.1f}% varianza",
-                    yaxis_title=f"CP2 — {evr_s[1]*100:.1f}% varianza",
-                    legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=13)),
-                    margin=dict(l=30, r=20, t=20, b=40),
-                )
-                st.plotly_chart(fig1, use_container_width=True)
-                st.success(
-                    f"✅ PCA ejecutado · {(evr_s[0]+evr_s[1])*100:.1f}% de varianza "
-                    f"capturada en solo 2 dimensiones (de 30)."
-                )
-                st.markdown(
-                    '<div class="hint-box">'
-                    '🔍 <strong>¿Qué ves?</strong> CP1 separa bastante bien las clases: '
-                    'los malignos (rojo) tienen núcleos más grandes → valores más altos en CP1. '
-                    'Hay una zona de solapamiento en el centro — esas biopsias son ambiguas '
-                    'incluso con las 30 variables. PCA captura ~63% de la varianza total en 2D.'
-                    '</div>',
-                    unsafe_allow_html=True,
-                )
+    if "pca_Xp" in st.session_state:
+        Xp_s = st.session_state["pca_Xp"]
+        evr_s = st.session_state["pca_evr"]
+        fig1 = go.Figure()
+        for cls, label, col in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
+            m = y == cls
+            fig1.add_trace(go.Scatter(
+                x=Xp_s[m, 0], y=Xp_s[m, 1], mode="markers", name=label,
+                marker=dict(color=col, size=7, opacity=0.82,
+                            line=dict(width=0.4, color="white")),
+            ))
+        fig1.update_layout(
+            template="plotly_dark", height=420,
+            xaxis_title=f"CP1 — {evr_s[0]*100:.1f}% varianza",
+            yaxis_title=f"CP2 — {evr_s[1]*100:.1f}% varianza",
+            legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=13)),
+            margin=dict(l=30, r=20, t=20, b=40),
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+        st.markdown(
+            '<div class="hint-box">'
+            '🔍 <strong>¿Qué ves?</strong> CP1 separa bastante bien las clases: '
+            'los malignos (rojo) tienen núcleos más grandes → valores más altos en CP1. '
+            'Hay una zona de solapamiento en el centro — esas biopsias son ambiguas '
+            'incluso con las 30 variables. PCA captura ~63% de la varianza total en 2D.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown(
         '<div class="respuesta-box">'
@@ -439,66 +465,79 @@ print(f"Varianza acumulada con {n_needed} componentes: {cum_evr[n_needed-1]*100:
         height=230, key="code_p2",
     )
 
+    _SOL_P2 = """\
+pca_full = PCA(random_state=42)
+pca_full.fit(X)
+evr_all = pca_full.explained_variance_ratio_
+cum_evr = np.cumsum(evr_all)
+n_needed = int(np.searchsorted(cum_evr, 0.90) + 1)
+print(f"Componentes para 90% varianza: {n_needed}")
+print(f"Reduccion: 30 -> {n_needed} dimensiones  ({30/n_needed:.1f}x menos)")
+print(f"Varianza acumulada con {n_needed} componentes: {cum_evr[n_needed-1]*100:.1f}%")
+"""
     run_p2 = st.button("▶ Ejecutar y graficar", key="run_p2", type="primary")
 
-    if run_p2 or "scree_cum" in st.session_state:
-        stdout, err, lns = run_user_code(code_p2)
+    if run_p2:
+        stdout, err, lns, used_sol = run_user_code(code_p2, solution=_SOL_P2)
         if err:
-            st.error("**Error:**\n```\n" + err + "\n```")
+            st.error("Error inesperado — revisa el código:\n```\n" + err + "\n```")
         else:
-            if "cum_evr" in lns:
-                st.session_state["scree_cum"]  = lns["cum_evr"]
-                st.session_state["scree_evr"]  = lns["evr_all"]
-                st.session_state["scree_n"]    = lns.get("n_needed")
+            if used_sol:
+                st.info("💡 Aún hay huecos sin rellenar — aquí tienes el resultado correcto:")
+            else:
+                st.success("✅ ¡Correcto! Tu código funciona perfectamente.")
             if stdout:
                 st.code(stdout, language="text")
+            if "cum_evr" in lns:
+                st.session_state["scree_cum"] = lns["cum_evr"]
+                st.session_state["scree_evr"] = lns["evr_all"]
+                st.session_state["scree_n"]   = lns.get("n_needed")
 
-            cum_s = st.session_state.get("scree_cum")
-            evr_s2 = st.session_state.get("scree_evr")
-            n_s    = st.session_state.get("scree_n")
-
-            if cum_s is not None and evr_s2 is not None:
-                nc = min(20, len(evr_s2))
-                fig2 = go.Figure()
-                fig2.add_bar(
-                    x=list(range(1, nc + 1)), y=evr_s2[:nc] * 100,
-                    name="Varianza individual", marker_color="#6C63FF", opacity=0.85,
-                )
-                fig2.add_scatter(
-                    x=list(range(1, nc + 1)), y=cum_s[:nc] * 100,
-                    name="Varianza acumulada",
-                    mode="lines+markers",
-                    line=dict(color="#F59E0B", width=2.5),
-                    marker=dict(size=7),
-                )
-                fig2.add_hline(y=90, line_dash="dash", line_color="#10B981",
-                               annotation_text="90%", annotation_position="right")
-                if n_s and n_s <= nc:
-                    fig2.add_vline(x=n_s, line_dash="dot", line_color="#FF6B6B",
-                                   annotation_text=f"  CP {n_s}",
-                                   annotation_position="top right")
-                fig2.update_layout(
-                    template="plotly_dark", height=380,
-                    xaxis_title="Número de componentes",
-                    yaxis_title="Varianza (%)",
-                    legend=dict(bgcolor="rgba(0,0,0,0.3)"),
-                    margin=dict(l=30, r=55, t=20, b=40),
-                )
-                st.plotly_chart(fig2, use_container_width=True)
-                if n_s:
-                    st.success(
-                        f"✅ Con **{n_s} componentes** se captura el 90% de la varianza "
-                        f"— de 30 a {n_s} dimensiones ({30/n_s:.1f}× de reducción)."
-                    )
-                st.markdown(
-                    '<div class="hint-box">'
-                    '🔍 <strong>Compara con Iris:</strong> Iris necesitaba solo 2 componentes '
-                    'para el 97%. Aquí se necesitan ~7–8 — los datos son más complejos. '
-                    '<strong>Implicación práctica:</strong> si entrenas un clasificador con 7 columnas en lugar de 30, '
-                    'entrenas 4× más rápido con casi la misma información.'
-                    '</div>',
-                    unsafe_allow_html=True,
-                )
+    if "scree_cum" in st.session_state:
+        cum_s  = st.session_state["scree_cum"]
+        evr_s2 = st.session_state["scree_evr"]
+        n_s    = st.session_state["scree_n"]
+        nc = min(20, len(evr_s2))
+        fig2 = go.Figure()
+        fig2.add_bar(
+            x=list(range(1, nc + 1)), y=evr_s2[:nc] * 100,
+            name="Varianza individual", marker_color="#6C63FF", opacity=0.85,
+        )
+        fig2.add_scatter(
+            x=list(range(1, nc + 1)), y=cum_s[:nc] * 100,
+            name="Varianza acumulada",
+            mode="lines+markers",
+            line=dict(color="#F59E0B", width=2.5),
+            marker=dict(size=7),
+        )
+        fig2.add_hline(y=90, line_dash="dash", line_color="#10B981",
+                       annotation_text="90%", annotation_position="right")
+        if n_s and n_s <= nc:
+            fig2.add_vline(x=n_s, line_dash="dot", line_color="#FF6B6B",
+                           annotation_text=f"  CP {n_s}",
+                           annotation_position="top right")
+        fig2.update_layout(
+            template="plotly_dark", height=380,
+            xaxis_title="Número de componentes",
+            yaxis_title="Varianza (%)",
+            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
+            margin=dict(l=30, r=55, t=20, b=40),
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+        if n_s:
+            st.success(
+                f"✅ Con **{n_s} componentes** se captura el 90% de la varianza "
+                f"— de 30 a {n_s} dimensiones ({30/n_s:.1f}× de reducción)."
+            )
+        st.markdown(
+            '<div class="hint-box">'
+            '🔍 <strong>Compara con Iris:</strong> Iris necesitaba solo 2 componentes '
+            'para el 97%. Aquí se necesitan ~7–8 — los datos son más complejos. '
+            '<strong>Implicación práctica:</strong> si entrenas un clasificador con 7 columnas en lugar de 30, '
+            'entrenas 4× más rápido con casi la misma información.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown(
         '<div class="respuesta-box">'
@@ -580,18 +619,28 @@ print("Rango eje 1:", round(Xt[:,0].min(), 1), "a", round(Xt[:,0].max(), 1))
     st.caption("⏱️ Puede tardar 10–20 segundos.")
 
     cache_key = f"tsne_{perp}_{n_iter_val}"
+    _SOL_P3 = f"""\
+tsne = TSNE(n_components=2, perplexity={perp}, max_iter={n_iter_val}, random_state=42, init="pca")
+Xt = tsne.fit_transform(X)
+print("Shape Xt:", Xt.shape)
+print("Rango eje 1:", round(Xt[:,0].min(), 1), "a", round(Xt[:,0].max(), 1))
+"""
     if run_p3:
         with st.spinner("Calculando t-SNE…"):
-            stdout, err, lns = run_user_code(
-                code_p3, {"perp": perp, "n_iter_val": n_iter_val}
+            stdout, err, lns, used_sol = run_user_code(
+                code_p3, solution=_SOL_P3, extra={"perp": perp, "n_iter_val": n_iter_val}
             )
         if err:
-            st.error("**Error:**\n```\n" + err + "\n```")
+            st.error("Error inesperado — revisa el código:\n```\n" + err + "\n```")
         else:
-            if "Xt" in lns:
-                st.session_state[cache_key] = lns["Xt"]
+            if used_sol:
+                st.info("💡 Aún hay huecos sin rellenar — aquí tienes el resultado correcto:")
+            else:
+                st.success("✅ ¡Correcto! Tu código funciona perfectamente.")
             if stdout:
                 st.code(stdout, language="text")
+            if "Xt" in lns:
+                st.session_state[cache_key] = lns["Xt"]
 
     if cache_key in st.session_state:
         Xt_s = st.session_state[cache_key]
