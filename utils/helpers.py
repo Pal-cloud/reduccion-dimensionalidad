@@ -212,14 +212,30 @@ def render_watermark(opacity: float = 1.0, size_px: int = 52) -> None:
             font-family: 'Inter', sans-serif;
             letter-spacing: .03em;
         }}
+        .site-footer .footer-link {{
+            font-size: .75rem;
+            color: #1a5276;
+            font-family: 'Inter', sans-serif;
+            text-decoration: none;
+            letter-spacing: .03em;
+        }}
+        .site-footer .footer-link:hover {{
+            text-decoration: underline;
+        }}
         /* Empuja el contenido principal para que no quede tapado por el footer */
         .main .block-container {{
             padding-bottom: 70px !important;
         }}
         </style>
         <div class="site-footer">
-            <span class="footer-text">© 2026 Pablo Alvarez López</span>
             <img src="data:image/png;base64,{b64}" alt="Logo personal" />
+            <span class="footer-text">© 2026 Paloma Gómez</span>
+            <a class="footer-link" href="https://www.linkedin.com/in/palomagsal" target="_blank" rel="noopener">
+                🔗 LinkedIn
+            </a>
+            <a class="footer-link" href="https://github.com/Pal-cloud" target="_blank" rel="noopener">
+                🐙 GitHub
+            </a>
         </div>
         """,
         unsafe_allow_html=True,
