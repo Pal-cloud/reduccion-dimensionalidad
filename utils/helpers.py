@@ -166,9 +166,11 @@ def _logo_base64() -> str:
     return ""
 
 
-def render_watermark(opacity: float = 0.55, size_px: int = 72) -> None:
-    """Inyecta el logo personal como marca de agua fija en la esquina inferior derecha.
+def render_watermark(opacity: float = 1.0, size_px: int = 52) -> None:
+    """Renderiza el logo personal en un footer fijo en la parte inferior de la página.
 
+    El footer tiene fondo claro (#e8eef1) para que el logo oscuro (#021017)
+    se vea con sus colores originales sin ningún filtro CSS.
     Llama esta función UNA vez por página, justo después de st.set_page_config().
     Si el logo no se encuentra o hay cualquier error, falla silenciosamente.
     """
@@ -181,25 +183,44 @@ def render_watermark(opacity: float = 0.55, size_px: int = 72) -> None:
     st.markdown(
         f"""
         <style>
-        .watermark-logo {{
+        /* ── Footer con logo ───────────────────────────────────────────── */
+        .site-footer {{
             position: fixed;
-            bottom: 18px;
-            right: 22px;
-            width: {size_px}px;
-            opacity: {opacity};
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #e8eef1;
+            border-top: 1px solid #c8d6dc;
+            padding: 6px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
             z-index: 9999;
-            pointer-events: none;
-            filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(255,255,255,0.25));
-            transition: opacity .3s, filter .3s;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.18);
         }}
-        .watermark-logo:hover {{
-            opacity: {min(opacity + 0.3, 1.0)};
-            filter: brightness(0) invert(1) drop-shadow(0 2px 14px rgba(255,255,255,0.55));
+        .site-footer img {{
+            width: {size_px}px;
+            height: auto;
+            opacity: {opacity};
+            display: block;
+            /* sin filtro: colores originales del logo */
+        }}
+        .site-footer .footer-text {{
+            font-size: .75rem;
+            color: #3a4a50;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: .03em;
+        }}
+        /* Empuja el contenido principal para que no quede tapado por el footer */
+        .main .block-container {{
+            padding-bottom: 70px !important;
         }}
         </style>
-        <img class="watermark-logo"
-             src="data:image/png;base64,{b64}"
-             alt="Logo personal" />
+        <div class="site-footer">
+            <span class="footer-text">© 2026 Pablo Alvarez López</span>
+            <img src="data:image/png;base64,{b64}" alt="Logo personal" />
+        </div>
         """,
         unsafe_allow_html=True,
     )
