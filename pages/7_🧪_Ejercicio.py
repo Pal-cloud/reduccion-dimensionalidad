@@ -1,4 +1,4 @@
-"""Ejercicio práctico guiado — Dataset de cáncer de mama (Breast Cancer Wisconsin)."""
+"""Ejercicio práctico guiado con código — Dataset Breast Cancer Wisconsin."""
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -8,9 +8,12 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 from sklearn.datasets import load_breast_cancer
+import traceback
+import io
+import contextlib
 
 st.set_page_config(
-    page_title="Ejercicio Práctico — Cáncer de Mama",
+    page_title="Ejercicio Práctico — Breast Cancer",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -32,26 +35,15 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-size: .72rem; font-weight: 700; letter-spacing: .11em;
     text-transform: uppercase; color: #10B981; margin-bottom: .3rem;
 }
-.step-card {
-    background: #111827; border: 1px solid #1f2937;
-    border-left: 5px solid; border-radius: 14px;
-    padding: 1.4rem 1.7rem; margin-bottom: 1rem;
-}
-.step-card h3 { margin: 0 0 .4rem 0; font-size: 1.05rem; font-weight: 700; }
-.step-card p  { margin: 0; color: #9CA3AF; font-size: .93rem; line-height: 1.65; }
-.step-num-big {
-    font-size: 2rem; font-weight: 800; line-height: 1;
-    margin-bottom: .3rem;
-}
 .task-box {
     background: #052e16; border: 1px solid #16a34a; border-radius: 8px;
-    padding: .75rem 1rem; color: #86efac; font-size: .91rem;
-    line-height: 1.6; margin-top: .8rem;
+    padding: .8rem 1.1rem; color: #86efac; font-size: .91rem;
+    line-height: 1.65; margin: .6rem 0;
 }
-.warn-box {
-    background: #1c1700; border: 1px solid #ca8a04; border-radius: 8px;
-    padding: .75rem 1rem; color: #fde047; font-size: .88rem;
-    line-height: 1.6; margin-top: .6rem;
+.hint-box {
+    background: #1c1f2e; border: 1px solid #4338ca; border-radius: 8px;
+    padding: .7rem 1rem; color: #a5b4fc; font-size: .88rem;
+    line-height: 1.6; margin-top: .4rem;
 }
 .info-box {
     background: #0c1a2e; border: 1px solid #2563eb; border-radius: 8px;
@@ -59,9 +51,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     line-height: 1.65; margin-bottom: .8rem;
 }
 .answer-box {
-    background: #1a1a2e; border: 1px solid #4B5563; border-radius: 10px;
-    padding: 1rem 1.2rem; margin-top: .5rem;
-    color: #D1D5DB; font-size: .9rem; line-height: 1.7;
+    background: #111827; border: 1px solid #374151; border-radius: 10px;
+    padding: 1rem 1.2rem; color: #D1D5DB; font-size: .9rem; line-height: 1.7;
 }
 .answer-box strong { color: #F9FAFB; }
 .ds-pill {
@@ -70,529 +61,757 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-size: .78rem; color: #94A3B8; font-weight: 600;
     margin-right: .3rem; margin-bottom: .3rem;
 }
+textarea {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace !important;
+    font-size: .87rem !important;
+}
+.respuesta-box {
+    background: #0a1628; border: 2px solid #2563eb;
+    border-left: 6px solid #3b82f6; border-radius: 10px;
+    padding: 1rem 1.3rem; margin-top: .8rem;
+}
+.respuesta-box .rb-title {
+    font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: #60a5fa; margin-bottom: .6rem;
+}
+.respuesta-box table {
+    width: 100%; border-collapse: collapse; font-size: .88rem;
+}
+.respuesta-box td {
+    padding: .3rem .6rem; vertical-align: top; color: #cbd5e1;
+    border-bottom: 1px solid #1e3a5f;
+}
+.respuesta-box td:first-child {
+    color: #93c5fd; font-family: monospace; font-weight: 600;
+    white-space: nowrap; width: 38%;
+}
+.respuesta-box tr:last-child td { border-bottom: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Cargar dataset ────────────────────────────────────────────────────────────
+# ── Dataset global (cacheado) ──────────────────────────────────────────────────
 @st.cache_data
 def _load():
     bc = load_breast_cancer()
-    return bc
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(bc.data)
+    return bc, X_scaled
 
-bc = _load()
+bc, X = _load()
 X_raw = bc.data
-y     = bc.target          # 0 = maligno, 1 = benigno
-names = bc.target_names    # ['malignant', 'benign']
+y     = bc.target        # 0 = maligno, 1 = benigno
 feat  = bc.feature_names
 
-scaler = StandardScaler()
-X = scaler.fit_transform(X_raw)
+# ── Ejecutor de código seguro ─────────────────────────────────────────────────
+def run_user_code(code: str, extra: dict = {}) -> tuple:
+    """Ejecuta el código del usuario. Devuelve (stdout, error_str, locals_dict)."""
+    local_ns: dict = {}
+    buf = io.StringIO()
+    globs = {
+        "np": np, "pd": pd,
+        "PCA": PCA, "TSNE": TSNE, "StandardScaler": StandardScaler,
+        "X": X, "X_raw": X_raw, "y": y, "feat": feat, "bc": bc,
+        **extra,
+    }
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(compile(code, "<ejercicio>", "exec"), globs, local_ns)  # noqa: S102
+        return buf.getvalue(), "", local_ns
+    except Exception:
+        return buf.getvalue(), traceback.format_exc(), local_ns
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CABECERA
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="hero-title">🧪 Ejercicio Práctico Guiado</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-title">🧪 Ejercicio Práctico con Código</p>',
+            unsafe_allow_html=True)
 st.markdown(
-    "**Dataset: Breast Cancer Wisconsin** — un caso real de medicina. "
-    "Ningún código que escribir. Solo observar, ajustar y razonar."
+    "**Dataset: Breast Cancer Wisconsin** · Completa los huecos `___` en cada bloque, "
+    "pulsa ▶ Ejecutar y observa el resultado. Sin instalaciones ni configuración."
 )
 st.markdown(
     '<span class="ds-pill">569 muestras</span>'
     '<span class="ds-pill">30 dimensiones</span>'
     '<span class="ds-pill">2 clases: maligno / benigno</span>'
-    '<span class="ds-pill">Datos reales de biopsias</span>',
+    '<span class="ds-pill">Datos ya cargados y escalados</span>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="info-box">'
+    '📦 <strong>Variables disponibles en todos los bloques de código:</strong><br>'
+    '• <code>X</code> — datos escalados (shape 569 × 30)<br>'
+    '• <code>X_raw</code> — datos originales sin escalar<br>'
+    '• <code>y</code> — etiquetas (0 = maligno · 1 = benigno)<br>'
+    '• <code>feat</code> — nombres de las 30 variables<br>'
+    '• <code>np</code>, <code>pd</code>, <code>PCA</code>, <code>TSNE</code>, '
+    '<code>StandardScaler</code> ya importados'
+    '</div>',
     unsafe_allow_html=True,
 )
 st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PRESENTACIÓN DEL DATASET
+# TABS
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">El dataset</p>', unsafe_allow_html=True)
-st.markdown("## ¿Con qué datos vamos a trabajar?")
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
+    "📋 El dataset",
+    "🧩 Paso 1 — PCA",
+    "📊 Paso 2 — Scree Plot",
+    "🌌 Paso 3 — t-SNE",
+    "✅ Soluciones",
+])
 
-col_desc, col_prev = st.columns([1.1, 1], gap="large")
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 0 — Exploración inicial
+# ─────────────────────────────────────────────────────────────────────────────
+with tab0:
+    st.markdown("### 📋 Antes de nada: entiende con qué datos trabajas")
 
-with col_desc:
-    st.markdown("""
-El **Breast Cancer Wisconsin Dataset** fue recopilado en la Universidad de Wisconsin-Madison
-en 1993 a partir de imágenes digitalizadas de biopsias de nódulos mamarios.
+    c_info, c_prev = st.columns([1.1, 1], gap="large")
+    with c_info:
+        st.markdown("""
+**Breast Cancer Wisconsin (Diagnostic)**
 
-Cada fila representa **una biopsia** (una muestra de tejido). A partir de la imagen
-se midieron 10 características del núcleo celular, y para cada una se calcularon
-3 estadísticos (media, error estándar y peor valor), dando **30 variables** en total.
+Cada fila = una biopsia de tejido mamario. A partir de una imagen microscópica
+se midieron 10 propiedades del núcleo celular (radio, textura, perímetro, área…)
+y para cada una se calcularon **3 estadísticos** (media, error estándar y valor máximo)
+→ **30 variables** en total.
 
-**¿Qué queremos saber?**
-¿Pueden estas 30 medidas separar automáticamente los tumores **malignos** de los **benignos**?
-¿Qué algoritmo lo hace mejor visualmente?
-
-**¿Por qué es interesante para este ejercicio?**
+**Objetivo:** ¿pueden esas 30 medidas separar automáticamente
+los tumores malignos de los benignos?
 """)
+        st.markdown(
+            '<div class="info-box">'
+            '🏥 Este dataset se usa en investigación clínica real. '
+            'Los modelos entrenados con él alcanzan >95 % de precisión. '
+            'La reducción de dimensionalidad nos ayuda a <em>visualizar por qué</em>.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "🔗 **Fuente oficial:** "
+            "[UCI ML Repository — Breast Cancer Wisconsin (Diagnostic)]"
+            "(https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic)  \n"
+            "🔗 **En scikit-learn:** "
+            "[sklearn.datasets.load\\_breast\\_cancer]"
+            "(https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_breast_cancer.html)  \n"
+            "📄 **Paper original:** Wolberg, W.H. et al. (1993) — *Breast cytology diagnoses "
+            "via digital image analysis*, Analytical and Quantitative Cytology and Histology."
+        )
+
+    with c_prev:
+        df_prev = pd.DataFrame(X_raw[:6, :5], columns=list(feat[:5])).round(2)
+        df_prev.insert(0, "diagnóstico",
+                       ["maligno" if t == 0 else "benigno" for t in y[:6]])
+        st.markdown("#### Primeras filas (5 variables)")
+        st.dataframe(df_prev, hide_index=True, use_container_width=True)
+        counts = pd.Series(y).map({0: "🔴 Maligno", 1: "🟢 Benigno"}).value_counts()
+        fig0 = px.bar(x=counts.index, y=counts.values,
+                      color=counts.index,
+                      color_discrete_map={"🔴 Maligno": "#FF6B6B", "🟢 Benigno": "#10B981"},
+                      template="plotly_dark", height=200,
+                      labels={"x": "", "y": "muestras"})
+        fig0.update_layout(showlegend=False, margin=dict(l=10, r=10, t=10, b=20))
+        st.plotly_chart(fig0, use_container_width=True)
+
+    st.divider()
+    st.markdown("#### ✏️ Ejercicio 0 — Explora el dataset con código")
     st.markdown(
-        '<div class="info-box">'
-        '🏥 <strong>Contexto real:</strong> en la práctica clínica, una biopsia tarda días '
-        'en analizarse. Un modelo que aprenda de estas 30 variables podría ayudar a '
-        'priorizar casos urgentes.<br><br>'
-        '📐 <strong>30 dimensiones</strong> es demasiado para visualizar directamente, '
-        'pero suficiente para que PCA y t-SNE muestren resultados muy diferentes.<br><br>'
-        '🎯 <strong>Solo 2 clases</strong> (maligno / benigno) hace que el resultado sea '
-        'fácil de interpretar: si el algoritmo funciona, verás <em>dos nubes</em> bien separadas.'
+        '<div class="task-box">'
+        '<strong>Tu misión:</strong> reemplaza cada <code>___</code> para:<br>'
+        '1. Imprimir el shape (dimensiones) de <code>X</code><br>'
+        '2. Contar cuántos malignos y benignos hay<br>'
+        '3. Comparar la media de la primera variable entre las dos clases'
         '</div>',
         unsafe_allow_html=True,
     )
 
-    # Variables más importantes
-    st.markdown("#### 📋 Muestra de las 30 variables")
-    df_feat = pd.DataFrame({
-        "Variable": feat[:10],
-        "Qué mide": [
-            "Radio medio del núcleo",
-            "Textura media (variación de escala de grises)",
-            "Perímetro medio",
-            "Área media",
-            "Suavidad media (variación local del radio)",
-            "Compacidad media",
-            "Concavidad media (severidad de partes cóncavas)",
-            "Puntos cóncavos medios",
-            "Simetría media",
-            "Dimensión fractal media",
-        ],
-    })
-    st.dataframe(df_feat, hide_index=True, use_container_width=True)
-    st.caption("Cada una de estas 10 medidas tiene además su error estándar y su valor máximo → 30 columnas.")
+    code_e0 = st.text_area(
+        "📝 Código — rellena los ___",
+        """\
+# 1. Dimensiones del dataset
+print("Shape de X:", ___.shape)
 
-with col_prev:
-    st.markdown("#### 👀 Primeras 8 filas (6 variables)")
-    cols_show = list(feat[:6])
-    df_show = pd.DataFrame(X_raw[:8, :6], columns=cols_show).round(2)
-    df_show.insert(0, "diagnóstico", ["maligno" if t == 0 else "benigno" for t in y[:8]])
-    st.dataframe(df_show, hide_index=True, use_container_width=True)
+# 2. Recuento por clase
+print("Malignos (y==0):", (y == ___).sum())
+print("Benignos (y==1):", (y == ___).sum())
 
-    st.markdown("#### 📊 ¿Cuántas muestras de cada clase?")
-    counts = pd.Series(y).map({0: "🔴 Maligno", 1: "🟢 Benigno"}).value_counts()
-    fig_bar = px.bar(
-        x=counts.index, y=counts.values,
-        labels={"x": "Diagnóstico", "y": "Muestras"},
-        color=counts.index,
-        color_discrete_map={"🔴 Maligno": "#FF6B6B", "🟢 Benigno": "#10B981"},
-        template="plotly_dark", height=230,
+# 3. Media de la primera variable en cada clase
+var0 = X_raw[:, 0]   # primera columna
+print(f"Media '{feat[0]}' — malignos: {var0[y==0].mean():.2f}")
+print(f"Media '{feat[0]}' — benignos: {var0[y==___].mean():.2f}")
+""",
+        height=220, key="code_e0",
     )
-    fig_bar.update_layout(showlegend=False, margin=dict(l=10, r=10, t=10, b=30))
-    st.plotly_chart(fig_bar, use_container_width=True)
-    st.caption("212 malignos (37 %) · 357 benignos (63 %) — dataset ligeramente desbalanceado.")
 
-    st.markdown("#### 🔢 Estadísticas de las primeras 5 variables")
-    df_stats = pd.DataFrame(X_raw[:, :5], columns=list(feat[:5]))
-    st.dataframe(df_stats.describe().round(2), use_container_width=True)
+    if st.button("▶ Ejecutar", key="run_e0", type="primary"):
+        stdout, err, _ = run_user_code(code_e0)
+        if err:
+            st.error("**Error:**\n```\n" + err + "\n```")
+        else:
+            st.success("✅ Correcto")
+            if stdout:
+                st.code(stdout, language="text")
+            st.markdown(
+                '<div class="hint-box">'
+                '💡 Deberías ver: shape (569, 30) · 212 malignos · 357 benignos · '
+                'radio medio ~17.5 en malignos vs ~12.1 en benignos. '
+                'Esa diferencia de ~44% explica por qué PCA separa tan bien las clases.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
-st.divider()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# EJERCICIOS — 4 PASOS
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<p class="section-label">Los ejercicios</p>', unsafe_allow_html=True)
-st.markdown("## 🎯 Cuatro pasos, cada uno con su misión")
-st.markdown(
-    '<div class="info-box">'
-    '⏱️ <strong>Tiempo estimado: 20–25 minutos en pareja.</strong> '
-    'Cada paso tiene un gráfico interactivo aquí mismo — no hace falta salir de esta página. '
-    'Leed el enunciado, moved los controles y responded las preguntas en voz alta o por escrito.'
-    '</div>',
-    unsafe_allow_html=True,
-)
-
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Paso 1 — PCA básico",
-    "Paso 2 — ¿Cuántas dimensiones?",
-    "Paso 3 — t-SNE",
-    "Paso 4 — Comparar",
-    "✅ Respuestas",
-])
+    st.markdown(
+        '<div class="respuesta-box">'
+        '<div class="rb-title">🔑 Respuestas correctas — Ejercicio 0</div>'
+        '<table>'
+        '<tr><td>___.shape</td><td>→ <strong>X</strong> (los datos escalados, 569×30)</td></tr>'
+        '<tr><td>y == ___  (malignos)</td><td>→ <strong>0</strong> &nbsp;·&nbsp; resultado: 212</td></tr>'
+        '<tr><td>y == ___  (benignos)</td><td>→ <strong>1</strong> &nbsp;·&nbsp; resultado: 357</td></tr>'
+        '<tr><td>y == ___ (última línea)</td><td>→ <strong>1</strong> &nbsp;·&nbsp; media ~12.15</td></tr>'
+        '</table>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PASO 1 — PCA básico
+# TAB 1 — PCA
 # ─────────────────────────────────────────────────────────────────────────────
 with tab1:
-    st.markdown("### 🧩 Paso 1 — PCA: ¿se pueden separar los tumores en 2D?")
+    st.markdown("### 🧩 Paso 1 — Aplica PCA y visualiza en 2D")
     st.markdown(
-        "PCA comprime las 30 dimensiones en 2 números (componentes principales). "
-        "Vamos a ver si esos 2 números bastan para separar los tumores malignos de los benignos."
+        "PCA comprime las 30 dimensiones en 2 componentes principales. "
+        "Tu trabajo es escribir el código que lo hace y ver si las dos clases quedan separadas."
     )
 
-    col_ctrl1, col_plot1 = st.columns([1, 2], gap="large")
-    with col_ctrl1:
-        st.markdown("#### ⚙️ Controles")
-        n_comp_show = st.slider(
-            "Número de componentes a calcular (para el Scree Plot del Paso 2)",
-            2, 30, 10, key="p1_ncomp",
-        )
-        point_size = st.slider("Tamaño de los puntos", 4, 14, 8, key="p1_ps")
-        opacity    = st.slider("Opacidad", 0.3, 1.0, 0.8, step=0.05, key="p1_op")
-
+    col_task1, col_hint1 = st.columns([1, 1], gap="large")
+    with col_task1:
         st.markdown(
             '<div class="task-box">'
-            '<strong>🎯 Tu misión:</strong><br>'
-            '1. Observa el gráfico. ¿Ves dos nubes de puntos claramente separadas?<br>'
-            '2. ¿Cuánta varianza acumulada muestran CP1 + CP2?<br>'
-            '3. ¿Hay zonas donde los colores se mezclan? ¿Qué crees que significa?'
+            '<strong>Tu misión:</strong><br>'
+            '1. Crear <code>PCA(n_components=___)</code> con 2 componentes<br>'
+            '2. Ajustar y transformar con <code>fit_transform(___)</code><br>'
+            '3. Imprimir el % de varianza de cada componente<br>'
+            '4. Ver el gráfico — ¿se separan las dos nubes?'
             '</div>',
             unsafe_allow_html=True,
         )
-        st.markdown(
-            '<div class="warn-box">'
-            '⚠️ <strong>Recuerda:</strong> PCA no conoce las etiquetas (maligno/benigno). '
-            'Sólo comprime. Los colores los añadimos nosotros para ver si funcionó.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
+    with col_hint1:
+        with st.expander("💡 Pista"):
+            st.markdown(
+                "- `pca = PCA(n_components=2, random_state=42)`\n"
+                "- `Xp = pca.fit_transform(X)` → aplica PCA a los datos escalados\n"
+                "- `pca.explained_variance_ratio_` → array con el % de varianza por componente\n"
+                "- `Xp.shape` → debería ser `(569, 2)`"
+            )
 
-    with col_plot1:
-        pca2 = PCA(n_components=2, random_state=42)
-        Xp   = pca2.fit_transform(X)
-        v    = pca2.explained_variance_ratio_
+    code_p1 = st.text_area(
+        "📝 Código",
+        """\
+# 1. Crear PCA con 2 componentes y transformar X
+pca = PCA(n_components=___, random_state=42)
+Xp  = pca.___(X)           # fit_transform
 
-        fig1 = go.Figure()
-        for cls, label, color in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
-            m = y == cls
-            fig1.add_trace(go.Scatter(
-                x=Xp[m, 0], y=Xp[m, 1], mode="markers",
-                name=label,
-                marker=dict(color=color, size=point_size, opacity=opacity,
-                            line=dict(width=0.5, color="white")),
-            ))
-        fig1.update_layout(
-            template="plotly_dark", height=420,
-            xaxis_title=f"CP1 — {v[0]*100:.1f}% de varianza",
-            yaxis_title=f"CP2 — {v[1]*100:.1f}% de varianza",
-            legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=13)),
-            margin=dict(l=30, r=20, t=20, b=40),
-        )
-        st.plotly_chart(fig1, use_container_width=True)
-        st.caption(
-            f"PCA 2D · {len(X)} biopsias · varianza capturada: "
-            f"**{(v[0]+v[1])*100:.1f}%** de las 30 variables originales."
-        )
+# 2. Varianza explicada por cada componente
+evr = pca.explained_variance_ratio_
+print(f"CP1: {evr[0]*100:.1f}%")
+print(f"CP2: {evr[1]*100:.1f}%")
+print(f"Total 2 componentes: {(evr[0]+evr[1])*100:.1f}%")
+
+# 3. Dimensiones del resultado
+print("Shape de Xp:", Xp.___)    # shape
+""",
+        height=240, key="code_p1",
+    )
+
+    run_p1 = st.button("▶ Ejecutar y graficar", key="run_p1", type="primary")
+
+    if run_p1 or "pca_Xp" in st.session_state:
+        stdout, err, lns = run_user_code(code_p1)
+        if err:
+            st.error("**Error:**\n```\n" + err + "\n```")
+            st.info("💡 Revisa que hayas reemplazado todos los `___`.")
+        else:
+            if "Xp" in lns:
+                st.session_state["pca_Xp"] = lns["Xp"]
+                st.session_state["pca_evr"] = lns["evr"]
+            if stdout:
+                st.code(stdout, language="text")
+
+            Xp_s = st.session_state.get("pca_Xp")
+            evr_s = st.session_state.get("pca_evr")
+            if Xp_s is not None and evr_s is not None:
+                fig1 = go.Figure()
+                for cls, label, col in [(0, "Maligno", "#FF6B6B"),
+                                        (1, "Benigno", "#10B981")]:
+                    m = y == cls
+                    fig1.add_trace(go.Scatter(
+                        x=Xp_s[m, 0], y=Xp_s[m, 1], mode="markers", name=label,
+                        marker=dict(color=col, size=7, opacity=0.82,
+                                    line=dict(width=0.4, color="white")),
+                    ))
+                fig1.update_layout(
+                    template="plotly_dark", height=420,
+                    xaxis_title=f"CP1 — {evr_s[0]*100:.1f}% varianza",
+                    yaxis_title=f"CP2 — {evr_s[1]*100:.1f}% varianza",
+                    legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=13)),
+                    margin=dict(l=30, r=20, t=20, b=40),
+                )
+                st.plotly_chart(fig1, use_container_width=True)
+                st.success(
+                    f"✅ PCA ejecutado · {(evr_s[0]+evr_s[1])*100:.1f}% de varianza "
+                    f"capturada en solo 2 dimensiones (de 30)."
+                )
+                st.markdown(
+                    '<div class="hint-box">'
+                    '🔍 <strong>¿Qué ves?</strong> CP1 separa bastante bien las clases: '
+                    'los malignos (rojo) tienen núcleos más grandes → valores más altos en CP1. '
+                    'Hay una zona de solapamiento en el centro — esas biopsias son ambiguas '
+                    'incluso con las 30 variables. PCA captura ~63% de la varianza total en 2D.'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown(
+        '<div class="respuesta-box">'
+        '<div class="rb-title">🔑 Respuestas correctas — Paso 1</div>'
+        '<table>'
+        '<tr><td>n_components=___</td><td>→ <strong>2</strong></td></tr>'
+        '<tr><td>pca.___(X)</td><td>→ <strong>fit_transform</strong>(X)</td></tr>'
+        '<tr><td>Xp.___</td><td>→ Xp.<strong>shape</strong> &nbsp;·&nbsp; resultado: (569, 2)</td></tr>'
+        '<tr><td>CP1 varianza</td><td>→ ~<strong>44.3 %</strong></td></tr>'
+        '<tr><td>CP2 varianza</td><td>→ ~<strong>19.0 %</strong></td></tr>'
+        '<tr><td>Total 2 comp.</td><td>→ ~<strong>63.3 %</strong> de varianza conservada</td></tr>'
+        '</table>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PASO 2 — Scree Plot
+# TAB 2 — Scree Plot
 # ─────────────────────────────────────────────────────────────────────────────
 with tab2:
-    st.markdown("### 📊 Paso 2 — ¿Cuántas componentes necesitamos realmente?")
+    st.markdown("### 📊 Paso 2 — ¿Cuántas componentes necesitamos?")
     st.markdown(
-        "Con 30 variables originales, PCA puede calcular hasta 30 componentes. "
-        "El **Scree Plot** nos muestra cuánta información aporta cada una. "
-        "El objetivo es encontrar el número mínimo de componentes que conservan el 90% de la varianza."
+        "En el Paso 1 usamos 2 componentes para visualizar. "
+        "Pero para entrenar un modelo de ML quizás necesitemos más. "
+        "El **Scree Plot** muestra cuánta información aporta cada componente."
     )
 
-    col_ctrl2, col_plot2 = st.columns([1, 2], gap="large")
-    with col_ctrl2:
-        umbral = st.slider("Umbral de varianza acumulada (%)", 70, 99, 90, key="p2_umb")
+    col_task2, col_hint2 = st.columns([1, 1], gap="large")
+    with col_task2:
         st.markdown(
             '<div class="task-box">'
-            '<strong>🎯 Tu misión:</strong><br>'
-            '1. Mueve el deslizador al umbral que prefieras (90 % es habitual).<br>'
-            '2. Observa la línea naranja del gráfico. '
-            '¿En qué componente cruza el umbral?<br>'
-            '3. ¿Cuántas de las 30 dimensiones originales necesitamos realmente?<br>'
-            '4. Compara con el dataset Iris (4D) — ¿es más o menos eficiente comprimir este?'
+            '<strong>Tu misión:</strong><br>'
+            '1. Ajustar PCA <strong>sin límite</strong> de componentes (calcula las 30)<br>'
+            '2. Calcular la varianza <strong>acumulada</strong> con <code>np.cumsum()</code><br>'
+            '3. Encontrar cuántas componentes superan el 90 % de varianza<br>'
+            '4. Imprimir ese número y el factor de reducción'
             '</div>',
             unsafe_allow_html=True,
         )
-
-    with col_plot2:
-        pca_all  = PCA(random_state=42).fit(X)
-        evr      = pca_all.explained_variance_ratio_
-        cum_evr  = np.cumsum(evr)
-        n_needed = int(np.searchsorted(cum_evr, umbral / 100) + 1)
-        nc_show  = min(n_comp_show, 30)
-
-        fig2 = go.Figure()
-        fig2.add_bar(
-            x=list(range(1, nc_show + 1)),
-            y=evr[:nc_show] * 100,
-            name="Varianza individual",
-            marker_color="#6C63FF",
-            opacity=0.8,
-        )
-        fig2.add_scatter(
-            x=list(range(1, nc_show + 1)),
-            y=cum_evr[:nc_show] * 100,
-            name="Varianza acumulada",
-            mode="lines+markers",
-            line=dict(color="#F59E0B", width=2.5),
-            marker=dict(size=6),
-        )
-        fig2.add_hline(
-            y=umbral,
-            line_dash="dash", line_color="#10B981", line_width=1.5,
-            annotation_text=f"{umbral}%",
-            annotation_position="right",
-        )
-        if n_needed <= nc_show:
-            fig2.add_vline(
-                x=n_needed,
-                line_dash="dot", line_color="#FF6B6B", line_width=1.5,
-                annotation_text=f"  CP {n_needed}",
-                annotation_position="top right",
+    with col_hint2:
+        with st.expander("💡 Pista"):
+            st.markdown(
+                "- `PCA()` sin argumentos calcula todas las componentes posibles (hasta 30 aquí)\n"
+                "- `np.cumsum(arr)` → suma acumulada: `[0.44, 0.63, 0.72, ...]`\n"
+                "- `np.searchsorted(cum_evr, 0.90)` → primer índice donde la suma supera 0.90\n"
+                "- Suma `+1` porque los índices empiezan en 0"
             )
-        fig2.update_layout(
-            template="plotly_dark", height=380,
-            xaxis_title="Número de componentes",
-            yaxis_title="Varianza (%)",
-            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
-            margin=dict(l=30, r=40, t=20, b=40),
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-        st.info(
-            f"Con **{n_needed} componentes** se captura el {umbral}% de la varianza "
-            f"(de 30 dimensiones originales → reducción {30/n_needed:.1f}×)."
-        )
+
+    code_p2 = st.text_area(
+        "📝 Código",
+        """\
+# 1. PCA con todas las componentes (sin n_components)
+pca_full = PCA(random_state=42)
+pca_full.fit(___)                  # ajustar a X
+
+# 2. Varianza individual y acumulada
+evr_all = pca_full.explained_variance_ratio_
+cum_evr = np.___(evr_all)          # cumsum → suma acumulada
+
+# 3. ¿Con cuántas componentes llegamos al 90%?
+n_needed = int(np.searchsorted(___, 0.90) + 1)
+print(f"Componentes para 90% varianza: {n_needed}")
+print(f"Reducción: 30 → {n_needed} dimensiones  ({30/n_needed:.1f}× menos)")
+print(f"Varianza acumulada con {n_needed} componentes: {cum_evr[n_needed-1]*100:.1f}%")
+""",
+        height=230, key="code_p2",
+    )
+
+    run_p2 = st.button("▶ Ejecutar y graficar", key="run_p2", type="primary")
+
+    if run_p2 or "scree_cum" in st.session_state:
+        stdout, err, lns = run_user_code(code_p2)
+        if err:
+            st.error("**Error:**\n```\n" + err + "\n```")
+        else:
+            if "cum_evr" in lns:
+                st.session_state["scree_cum"]  = lns["cum_evr"]
+                st.session_state["scree_evr"]  = lns["evr_all"]
+                st.session_state["scree_n"]    = lns.get("n_needed")
+            if stdout:
+                st.code(stdout, language="text")
+
+            cum_s = st.session_state.get("scree_cum")
+            evr_s2 = st.session_state.get("scree_evr")
+            n_s    = st.session_state.get("scree_n")
+
+            if cum_s is not None and evr_s2 is not None:
+                nc = min(20, len(evr_s2))
+                fig2 = go.Figure()
+                fig2.add_bar(
+                    x=list(range(1, nc + 1)), y=evr_s2[:nc] * 100,
+                    name="Varianza individual", marker_color="#6C63FF", opacity=0.85,
+                )
+                fig2.add_scatter(
+                    x=list(range(1, nc + 1)), y=cum_s[:nc] * 100,
+                    name="Varianza acumulada",
+                    mode="lines+markers",
+                    line=dict(color="#F59E0B", width=2.5),
+                    marker=dict(size=7),
+                )
+                fig2.add_hline(y=90, line_dash="dash", line_color="#10B981",
+                               annotation_text="90%", annotation_position="right")
+                if n_s and n_s <= nc:
+                    fig2.add_vline(x=n_s, line_dash="dot", line_color="#FF6B6B",
+                                   annotation_text=f"  CP {n_s}",
+                                   annotation_position="top right")
+                fig2.update_layout(
+                    template="plotly_dark", height=380,
+                    xaxis_title="Número de componentes",
+                    yaxis_title="Varianza (%)",
+                    legend=dict(bgcolor="rgba(0,0,0,0.3)"),
+                    margin=dict(l=30, r=55, t=20, b=40),
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                if n_s:
+                    st.success(
+                        f"✅ Con **{n_s} componentes** se captura el 90% de la varianza "
+                        f"— de 30 a {n_s} dimensiones ({30/n_s:.1f}× de reducción)."
+                    )
+                st.markdown(
+                    '<div class="hint-box">'
+                    '🔍 <strong>Compara con Iris:</strong> Iris necesitaba solo 2 componentes '
+                    'para el 97%. Aquí se necesitan ~7–8 — los datos son más complejos. '
+                    '<strong>Implicación práctica:</strong> si entrenas un clasificador con 7 columnas en lugar de 30, '
+                    'entrenas 4× más rápido con casi la misma información.'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown(
+        '<div class="respuesta-box">'
+        '<div class="rb-title">🔑 Respuestas correctas — Paso 2</div>'
+        '<table>'
+        '<tr><td>pca_full.fit(___)</td><td>→ <strong>X</strong> (datos escalados)</td></tr>'
+        '<tr><td>np.___(evr_all)</td><td>→ np.<strong>cumsum</strong>(evr_all)</td></tr>'
+        '<tr><td>np.searchsorted(___, 0.90)</td><td>→ <strong>cum_evr</strong></td></tr>'
+        '<tr><td>Componentes para 90% varianza</td><td>→ <strong>7</strong> componentes</td></tr>'
+        '<tr><td>Factor de reducción</td><td>→ <strong>4.3×</strong> menos dimensiones (30 → 7)</td></tr>'
+        '<tr><td>Varianza acumulada</td><td>→ ~<strong>90.6 %</strong></td></tr>'
+        '</table>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PASO 3 — t-SNE
+# TAB 3 — t-SNE
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("### 🌌 Paso 3 — t-SNE: ¿mejora la separación?")
     st.markdown(
-        "t-SNE es un algoritmo no lineal que intenta colocar puntos similares cerca en 2D. "
-        "A diferencia de PCA, **no tiene en cuenta las distancias globales** — "
-        "sólo le importa que los vecinos cercanos queden cerca."
+        "t-SNE es no lineal y suele revelar clústeres más nítidos que PCA. "
+        "Vas a escribir el código, elegir la perplejidad y comparar los resultados lado a lado."
     )
 
-    col_ctrl3, col_plot3 = st.columns([1, 2], gap="large")
+    col_ctrl3, col_task3 = st.columns([1, 1], gap="large")
     with col_ctrl3:
-        st.markdown("#### ⚙️ Controles")
-        perp = st.slider("Perplejidad", 5, 80, 30, step=5, key="p3_perp")
+        perp = st.slider("Perplejidad a usar en el código", 5, 80, 30, step=5, key="p3_perp")
         n_iter_val = st.select_slider(
             "Iteraciones", options=[250, 500, 750, 1000], value=500, key="p3_iter"
         )
-        run_tsne = st.button("▶ Ejecutar t-SNE", type="primary", key="p3_run",
-                             use_container_width=True)
+        st.markdown(
+            '<div class="hint-box">'
+            '💡 <strong>Perplejidad</strong> = nº de vecinos que cada punto considera. '
+            'Baja (5–15): grupos compactos y separados artificialmente. '
+            'Alta (50–80): visión más global, grupos más difusos.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    with col_task3:
         st.markdown(
             '<div class="task-box">'
-            '<strong>🎯 Tu misión:</strong><br>'
-            '1. Ejecuta con perplejidad 30. ¿Las dos nubes están más separadas que en PCA?<br>'
-            '2. Prueba perplejidad 5. ¿Qué pasa con los grupos?<br>'
-            '3. Prueba perplejidad 70. ¿Y ahora?<br>'
-            '4. Ejecuta dos veces con los mismos parámetros. '
-            '¿El gráfico es idéntico? ¿Por qué?'
+            '<strong>Tu misión:</strong><br>'
+            '1. Crear <code>TSNE(n_components=___)</code> con 2 componentes<br>'
+            '2. Llamar a <code>.fit_transform(___)</code> sobre <code>X</code><br>'
+            '3. Comparar el resultado con el PCA del Paso 1'
             '</div>',
             unsafe_allow_html=True,
         )
-        st.markdown(
-            '<div class="warn-box">'
-            '⚠️ t-SNE es lento: puede tardar 10–20 segundos. '
-            'Es normal — está haciendo miles de cálculos de vecindario.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
+        with st.expander("💡 Pista"):
+            st.markdown(
+                "- `TSNE(n_components=2, perplexity=30, max_iter=500, random_state=42, init='pca')`\n"
+                "- `Xt = tsne.fit_transform(X)` — ojo: t-SNE solo tiene `fit_transform`, no `transform`\n"
+                "- El resultado tiene shape `(569, 2)` igual que PCA"
+            )
 
-    with col_plot3:
-        key_tsne = f"tsne_{perp}_{n_iter_val}"
-        if run_tsne or key_tsne not in st.session_state:
-            with st.spinner("Calculando t-SNE…"):
-                tsne_model = TSNE(
-                    n_components=2, perplexity=perp,
-                    max_iter=n_iter_val, random_state=42, init="pca",
-                )
-                Xt = tsne_model.fit_transform(X)
-            st.session_state[key_tsne] = Xt
-        else:
-            Xt = st.session_state[key_tsne]
+    code_p3 = st.text_area(
+        "📝 Código",
+        f"""\
+# Crear y ejecutar t-SNE (tarda ~15 s, es normal)
+tsne = TSNE(
+    n_components=___,
+    perplexity={perp},
+    max_iter={n_iter_val},
+    random_state=42,
+    init="pca",
+)
+Xt = tsne.___(X)          # fit_transform
 
-        fig3 = go.Figure()
-        for cls, label, color in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
-            m = y == cls
-            fig3.add_trace(go.Scatter(
-                x=Xt[m, 0], y=Xt[m, 1], mode="markers",
-                name=label,
-                marker=dict(color=color, size=8, opacity=0.8,
-                            line=dict(width=0.4, color="white")),
-            ))
-        fig3.update_layout(
-            template="plotly_dark", height=420,
-            xaxis_title="t-SNE 1",
-            yaxis_title="t-SNE 2",
-            legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=13)),
-            margin=dict(l=30, r=20, t=20, b=40),
-        )
-        st.plotly_chart(fig3, use_container_width=True)
-        st.caption(
-            f"t-SNE · perplejidad={perp} · {n_iter_val} iteraciones · "
-            f"{len(X)} biopsias"
-        )
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PASO 4 — Comparar PCA vs t-SNE
-# ─────────────────────────────────────────────────────────────────────────────
-with tab4:
-    st.markdown("### ⚔️ Paso 4 — PCA vs t-SNE cara a cara")
-    st.markdown(
-        "Ahora ponemos los dos gráficos uno al lado del otro con el mismo dataset. "
-        "Esto permite ver directamente qué diferencias introduce el método no lineal."
+print("Shape Xt:", Xt.___)    # shape
+print("Rango eje 1:", round(Xt[:,0].min(), 1), "a", round(Xt[:,0].max(), 1))
+""",
+        height=230, key="code_p3",
     )
 
+    run_p3 = st.button("▶ Ejecutar t-SNE", key="run_p3", type="primary")
+    st.caption("⏱️ Puede tardar 10–20 segundos.")
+
+    cache_key = f"tsne_{perp}_{n_iter_val}"
+    if run_p3:
+        with st.spinner("Calculando t-SNE…"):
+            stdout, err, lns = run_user_code(
+                code_p3, {"perp": perp, "n_iter_val": n_iter_val}
+            )
+        if err:
+            st.error("**Error:**\n```\n" + err + "\n```")
+        else:
+            if "Xt" in lns:
+                st.session_state[cache_key] = lns["Xt"]
+            if stdout:
+                st.code(stdout, language="text")
+
+    if cache_key in st.session_state:
+        Xt_s = st.session_state[cache_key]
+        c_left, c_right = st.columns(2, gap="medium")
+
+        with c_left:
+            st.markdown(f"#### 🌌 t-SNE (perp={perp})")
+            fig_t = go.Figure()
+            for cls, label, col in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
+                m = y == cls
+                fig_t.add_trace(go.Scatter(
+                    x=Xt_s[m, 0], y=Xt_s[m, 1], mode="markers", name=label,
+                    marker=dict(color=col, size=7, opacity=0.82,
+                                line=dict(width=0.4, color="white")),
+                ))
+            fig_t.update_layout(
+                template="plotly_dark", height=370,
+                xaxis_title="t-SNE 1", yaxis_title="t-SNE 2",
+                legend=dict(bgcolor="rgba(0,0,0,0.3)"),
+                margin=dict(l=20, r=10, t=20, b=40),
+            )
+            st.plotly_chart(fig_t, use_container_width=True)
+            st.caption(f"perp={perp} · {n_iter_val} iter")
+
+        with c_right:
+            st.markdown("#### 🧩 PCA (referencia Paso 1)")
+            pca_ref = PCA(n_components=2, random_state=42)
+            Xp_ref  = pca_ref.fit_transform(X)
+            v_ref   = pca_ref.explained_variance_ratio_
+            fig_p = go.Figure()
+            for cls, label, col in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
+                m = y == cls
+                fig_p.add_trace(go.Scatter(
+                    x=Xp_ref[m, 0], y=Xp_ref[m, 1], mode="markers", name=label,
+                    marker=dict(color=col, size=7, opacity=0.82,
+                                line=dict(width=0.4, color="white")),
+                ))
+            fig_p.update_layout(
+                template="plotly_dark", height=370,
+                xaxis_title=f"CP1 ({v_ref[0]*100:.0f}%)",
+                yaxis_title=f"CP2 ({v_ref[1]*100:.0f}%)",
+                legend=dict(bgcolor="rgba(0,0,0,0.3)"),
+                margin=dict(l=20, r=10, t=20, b=40),
+            )
+            st.plotly_chart(fig_p, use_container_width=True)
+            st.caption(f"Varianza total: {(v_ref[0]+v_ref[1])*100:.1f}%")
+
+        st.markdown(
+            '<div class="hint-box">'
+            '🔍 <strong>¿Qué diferencias ves?</strong> t-SNE crea dos nubes más compactas '
+            'y separadas que PCA. Pero sus ejes no tienen interpretación física '
+            '(no hay % de varianza) y el resultado cambia con distintas semillas. '
+            '<strong>PCA para pipelines de ML, t-SNE para exploración visual.</strong>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
     st.markdown(
-        '<div class="task-box">'
-        '<strong>🎯 Tu misión (debatid en pareja):</strong><br>'
-        '1. ¿Cuál de los dos métodos separa mejor las clases visualmente?<br>'
-        '2. ¿Hay muestras que ambos métodos clasifican igual de mal (zona de mezcla)?<br>'
-        '3. Si tuvieras que usar uno de los dos para presentar este análisis a un médico, ¿cuál usarías? Justifica.<br>'
-        '4. PCA conserva el 44% de la varianza en 2D. ¿Es suficiente para tomar decisiones clínicas?'
+        '<div class="respuesta-box">'
+        '<div class="rb-title">🔑 Respuestas correctas — Paso 3</div>'
+        '<table>'
+        '<tr><td>n_components=___</td><td>→ <strong>2</strong></td></tr>'
+        '<tr><td>tsne.___(X)</td><td>→ tsne.<strong>fit_transform</strong>(X)</td></tr>'
+        '<tr><td>Xt.___</td><td>→ Xt.<strong>shape</strong> &nbsp;·&nbsp; resultado: (569, 2)</td></tr>'
+        '<tr><td>Perplejidad recomendada</td><td>→ <strong>30</strong> (valor por defecto equilibrado)</td></tr>'
+        '<tr><td>¿t-SNE puede transformar datos nuevos?</td><td>→ <strong>No</strong> — solo <code>fit_transform</code>, sin <code>transform</code></td></tr>'
+        '<tr><td>¿Separa mejor que PCA?</td><td>→ <strong>Sí visualmente</strong>, pero sin interpretación cuantitativa de ejes</td></tr>'
+        '</table>'
         '</div>',
         unsafe_allow_html=True,
     )
 
-    cA, cB = st.columns(2, gap="large")
-
-    # PCA (ya calculado)
-    with cA:
-        st.markdown("#### 🧩 PCA")
-        fig4a = go.Figure()
-        for cls, label, color in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
-            m = y == cls
-            fig4a.add_trace(go.Scatter(
-                x=Xp[m, 0], y=Xp[m, 1], mode="markers", name=label,
-                marker=dict(color=color, size=7, opacity=0.75,
-                            line=dict(width=0.4, color="white")),
-            ))
-        fig4a.update_layout(
-            template="plotly_dark", height=380,
-            xaxis_title=f"CP1 ({v[0]*100:.0f}%)", yaxis_title=f"CP2 ({v[1]*100:.0f}%)",
-            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
-            margin=dict(l=20, r=10, t=20, b=40),
-        )
-        st.plotly_chart(fig4a, use_container_width=True)
-        st.caption(f"Varianza total capturada: **{(v[0]+v[1])*100:.1f}%**")
-
-    # t-SNE (perplejidad 30, 500 iter — precalculada o recalculada)
-    with cB:
-        st.markdown("#### 🌌 t-SNE (perplejidad 30)")
-        key_cmp = "tsne_30_500"
-        if key_cmp not in st.session_state:
-            with st.spinner("Calculando t-SNE…"):
-                Xt_cmp = TSNE(n_components=2, perplexity=30, max_iter=500,
-                              random_state=42, init="pca").fit_transform(X)
-            st.session_state[key_cmp] = Xt_cmp
-        else:
-            Xt_cmp = st.session_state[key_cmp]
-
-        fig4b = go.Figure()
-        for cls, label, color in [(0, "Maligno", "#FF6B6B"), (1, "Benigno", "#10B981")]:
-            m = y == cls
-            fig4b.add_trace(go.Scatter(
-                x=Xt_cmp[m, 0], y=Xt_cmp[m, 1], mode="markers", name=label,
-                marker=dict(color=color, size=7, opacity=0.75,
-                            line=dict(width=0.4, color="white")),
-            ))
-        fig4b.update_layout(
-            template="plotly_dark", height=380,
-            xaxis_title="t-SNE 1", yaxis_title="t-SNE 2",
-            legend=dict(bgcolor="rgba(0,0,0,0.3)"),
-            margin=dict(l=20, r=10, t=20, b=40),
-        )
-        st.plotly_chart(fig4b, use_container_width=True)
-        st.caption("No hay % de varianza — t-SNE no la reporta.")
-
 # ─────────────────────────────────────────────────────────────────────────────
-# PASO 5 — Respuestas guiadas
+# TAB 4 — Soluciones
 # ─────────────────────────────────────────────────────────────────────────────
-with tab5:
-    st.markdown("### ✅ Respuestas y reflexiones guiadas")
+with tab4:
+    st.markdown("### ✅ Soluciones completas y explicaciones")
     st.markdown(
-        "Comprueba tus razonamientos. No hay una única respuesta correcta — "
-        "lo importante es que puedas justificar tu elección."
+        "Despliega cada apartado **solo cuando hayas intentado el ejercicio**. "
+        "No hay trampa en mirar las soluciones — lo importante es entender el razonamiento."
     )
 
-    preguntas = [
-        (
-            "¿Ves dos nubes claramente separadas en PCA?",
-            "**Sí, aunque con solapamiento.** CP1 separa bien las dos clases: los tumores malignos "
-            "tienden a tener valores más altos en CP1 (mayor tamaño nuclear). Sin embargo, "
-            "hay una zona de mezcla en el centro. PCA captura ~44% de la varianza en 2D — "
-            "significa que el 56% restante queda 'aplastado' y algunas muestras parecen "
-            "más parecidas de lo que realmente son."
-        ),
-        (
-            "¿Cuántas componentes necesita este dataset para llegar al 90% de varianza?",
-            "Aproximadamente **7–8 componentes** (frente a las 2 que necesita Iris para el 97%). "
-            "Esto refleja que el cáncer de mama tiene más estructura compleja: "
-            "hay 30 variables con correlaciones no tan perfectas entre sí. "
-            "En la práctica, 7D es mucho más manejable que 30D para entrenar un clasificador."
-        ),
-        (
-            "¿Por qué t-SNE da un gráfico diferente cada vez que se ejecuta?",
-            "Porque t-SNE tiene inicialización **aleatoria** (aunque usamos `init='pca'` "
-            "para reducirlo) y su algoritmo de optimización introduce variabilidad. "
-            "Los grupos aparecen siempre, pero su posición y orientación cambian. "
-            "Por eso nunca se debe usar t-SNE para comparar dos ejecuciones diferentes."
-        ),
-        (
-            "¿Qué método separa mejor visualmente: PCA o t-SNE?",
-            "**t-SNE** separa las dos clases de forma más nítida, con menos solapamiento. "
-            "Esto es esperable: al ser no lineal, puede capturar relaciones curvas entre "
-            "las variables que PCA (lineal) no puede expresar. Sin embargo, t-SNE es lento "
-            "y no puede transformar datos nuevos — no sirve para producción."
-        ),
-        (
-            "¿Usarías la visualización 2D de PCA para tomar una decisión clínica?",
-            "**No directamente.** Una visualización 2D es exploratoria — muestra tendencias, "
-            "no certezas. En un contexto clínico real se necesitaría: (1) un modelo de "
-            "clasificación entrenado con todas las dimensiones o con las 7-8 componentes "
-            "relevantes, (2) validación externa, y (3) un umbral de confianza claro. "
-            "La visualización ayuda a comunicar y detectar outliers, no a diagnosticar."
-        ),
-    ]
+    with st.expander("📋 Solución Ejercicio 0 — Explorar el dataset"):
+        st.code("""\
+# 1. Shape
+print("Shape de X:", X.shape)            # (569, 30)
 
-    for i, (pregunta, respuesta) in enumerate(preguntas, 1):
-        with st.expander(f"❓ Pregunta {i}: {pregunta}"):
-            st.markdown(
-                f'<div class="answer-box">{respuesta}</div>',
-                unsafe_allow_html=True,
-            )
+# 2. Recuento por clase
+print("Malignos (y==0):", (y == 0).sum()) # 212
+print("Benignos (y==1):", (y == 1).sum()) # 357
+
+# 3. Media de la primera variable
+var0 = X_raw[:, 0]
+print(f"Media '{feat[0]}' — malignos: {var0[y==0].mean():.2f}")  # ~17.46
+print(f"Media '{feat[0]}' — benignos: {var0[y==1].mean():.2f}")  # ~12.15
+""", language="python")
+        st.markdown(
+            '<div class="answer-box">'
+            '💬 <strong>Por qué importa:</strong> el radio medio es ~44% mayor en malignos. '
+            'Eso significa que CP1 de PCA (la dirección de máxima varianza) '
+            'estará muy correlacionada con el tamaño del núcleo — '
+            'de ahí que separe tan bien las clases en el gráfico.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("🧩 Solución Paso 1 — PCA"):
+        st.code("""\
+pca = PCA(n_components=2, random_state=42)
+Xp  = pca.fit_transform(X)
+
+evr = pca.explained_variance_ratio_
+print(f"CP1: {evr[0]*100:.1f}%")          # ~44.3%
+print(f"CP2: {evr[1]*100:.1f}%")          # ~19.0%
+print(f"Total: {(evr[0]+evr[1])*100:.1f}%") # ~63.3%
+
+print("Shape de Xp:", Xp.shape)           # (569, 2)
+""", language="python")
+        st.markdown(
+            '<div class="answer-box">'
+            '<strong>Interpretación:</strong> con 2 números por biopsia capturamos el ~63% '
+            'de la información de 30 variables — suficiente para ver la tendencia, '
+            'pero no para diagnosticar. CP1 sola captura el 44%: hay una dirección '
+            'dominante de variación (el tamaño del núcleo).'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("📊 Solución Paso 2 — Scree Plot"):
+        st.code("""\
+pca_full = PCA(random_state=42)
+pca_full.fit(X)
+
+evr_all = pca_full.explained_variance_ratio_
+cum_evr = np.cumsum(evr_all)
+
+n_needed = int(np.searchsorted(cum_evr, 0.90) + 1)
+print(f"Componentes para 90% varianza: {n_needed}")       # 7
+print(f"Reducción: 30 → {n_needed} ({30/n_needed:.1f}× menos)")
+print(f"Varianza acumulada: {cum_evr[n_needed-1]*100:.1f}%")
+""", language="python")
+        st.markdown(
+            '<div class="answer-box">'
+            '<strong>Resultado:</strong> ~7 componentes para el 90% '
+            '(Iris solo necesitaba 2 para el 97%). '
+            'Los datos de cáncer son más complejos y las 30 variables '
+            'tienen correlaciones más débiles entre sí. '
+            '<strong>Aplicación:</strong> entrena tu clasificador con 7 columnas en vez de 30 '
+            '→ 4× más rápido, casi la misma precisión.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("🌌 Solución Paso 3 — t-SNE"):
+        st.code("""\
+tsne = TSNE(
+    n_components=2,
+    perplexity=30,
+    max_iter=500,
+    random_state=42,
+    init="pca",
+)
+Xt = tsne.fit_transform(X)
+
+print("Shape Xt:", Xt.shape)       # (569, 2)
+print("Rango eje 1:", round(Xt[:,0].min(),1), "a", round(Xt[:,0].max(),1))
+""", language="python")
+        st.markdown(
+            '<div class="answer-box">'
+            '<strong>Conclusión:</strong> t-SNE crea una separación más nítida que PCA '
+            'porque captura relaciones no lineales. Pero no reporta % de varianza, '
+            'no es reproducible sin fijar seed, y <strong>no puede transformar datos nuevos</strong>. '
+            'Regla: PCA para pipelines de producción, t-SNE para exploración.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     st.divider()
     st.markdown("### 🏁 Reflexión final")
     reflexion = st.radio(
-        "Después de este ejercicio, si tuvieras un dataset médico de 50 variables y "
-        "quisieras hacer una primera exploración visual, ¿qué harías?",
+        "Tienes un dataset clínico de 50 variables y quieres entrenar un clasificador rápido "
+        "y visualizar los datos. ¿Cuál sería tu flujo de trabajo?",
         [
-            "Intentaría visualizar directamente las 50 variables",
-            "Aplicaría PCA primero para tener una idea rápida, luego t-SNE para afinar ✅",
-            "Solo usaría t-SNE porque da mejores gráficos",
-            "Esperaría a tener más datos antes de visualizar nada",
+            "Entrenar directamente con las 50 variables sin reducir nada",
+            "PCA → reducir a ~10 componentes → entrenar + t-SNE para visualizar ✅",
+            "Solo t-SNE para todo — visualizar y también entrenar",
+            "Eliminar variables manualmente hasta quedarse con 5",
         ],
         index=None,
-        key="quiz_ejercicio",
+        key="quiz_final",
     )
     if reflexion:
-        if "PCA primero" in reflexion:
+        if "PCA →" in reflexion:
             st.success(
-                "🎉 ¡Exacto! PCA es rápido y reproducible — perfecto para una primera exploración. "
-                "Si los grupos no son claros en PCA, entonces usas t-SNE o UMAP. "
-                "Este flujo de trabajo es el estándar en ciencia de datos."
+                "🎉 ¡Exacto! Este es el flujo estándar en ciencia de datos: "
+                "PCA reduce dimensiones de forma reproducible para el modelo, "
+                "y t-SNE genera una visualización exploratoria potente. "
+                "Son complementarios, no excluyentes."
             )
         elif "50 variables" in reflexion:
-            st.error(
-                "❌ Con 50 variables es imposible hacer una visualización directa significativa. "
-                "Necesitarías elegir 2 variables cada vez — perderías el contexto del resto."
-            )
-        elif "Solo usaría t-SNE" in reflexion:
             st.warning(
-                "⚠️ t-SNE es potente pero lento y no reproducible. "
-                "Para datos grandes o cuando necesites transformar datos nuevos, "
-                "PCA sigue siendo imprescindible como primer paso."
+                "⚠️ Funciona, pero con 50 variables hay mucha redundancia. "
+                "Reducir a ~10 componentes PCA conserva el 90% de la información "
+                "y entrena mucho más rápido."
+            )
+        elif "Solo t-SNE" in reflexion:
+            st.error(
+                "❌ t-SNE no puede transformar datos nuevos — no sirve para entrenar modelos. "
+                "Su uso es exclusivamente exploratorio."
             )
         else:
-            st.warning(
-                "⚠️ La cantidad de datos no suele ser la limitante para visualizar. "
-                "Con 50 dimensiones incluso 100 muestras justifican usar reducción de dimensionalidad."
+            st.error(
+                "❌ Eliminar variables manualmente introduce sesgo y pierde correlaciones. "
+                "PCA lo hace objetivamente, basado en los propios datos."
             )
 
 st.divider()
 st.markdown(
     "<p style='text-align:center;color:#4B5563;font-size:.88rem'>"
-    "Dataset: Breast Cancer Wisconsin (Diagnostic) · UCI Machine Learning Repository · "
+    "Dataset: Breast Cancer Wisconsin (Diagnostic) · UCI ML Repository · "
     "Wolberg, W.H. et al. (1993)"
     "</p>",
     unsafe_allow_html=True,
