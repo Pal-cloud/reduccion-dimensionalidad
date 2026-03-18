@@ -647,6 +647,15 @@ elif s == 5:
             f"de la varianza. CP2 captura el **{pca_demo.explained_variance_ratio_[1]*100:.0f}%** adicional. "
             "Las flechas apuntan a los ejes de mayor dispersión."
         )
+        st.markdown("#### 📐 Fórmulas esenciales")
+        st.markdown(r"""
+| | Fórmula | Significado |
+|--|---------|-------------|
+| Covarianza | $\mathbf{C}=\frac{1}{n-1}\mathbf{X}^\top\mathbf{X}$ | Mide correlación entre variables |
+| Eigenvectores | $\mathbf{C}\mathbf{v}=\lambda\mathbf{v}$ | $\mathbf{v}$ = dirección; $\lambda$ = varianza capturada |
+| Proyección | $\mathbf{Z}=\mathbf{X}\mathbf{W}_k$ | Comprime a $k$ dimensiones |
+| Var. explicada | $\lambda_i/\sum\lambda_j$ | % de información conservada por $CP_i$ |
+""")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DIAPOSITIVA 6 — PCA en acción: dataset Iris
@@ -837,6 +846,14 @@ elif s == 8:
             'Siempre fijar <code>random_state</code>.</div>',
             unsafe_allow_html=True,
         )
+        st.markdown("#### 📐 Fórmulas esenciales")
+        st.markdown(r"""
+| | Fórmula | Significado |
+|--|---------|-------------|
+| Alta dim. | $p_{j\|i}\propto e^{-\|x_i-x_j\|^2/2\sigma_i^2}$ | Similitud Gaussiana; $\sigma_i$ lo fija la perplejidad |
+| Baja dim. | $q_{ij}\propto(1+\|y_i-y_j\|^2)^{-1}$ | Distribución **t de Student** — colas gruesas = clusters separados |
+| Coste | $\mathcal{L}=\text{KL}(P\|Q)$ | Minimiza diferencia entre las dos distribuciones |
+""")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DIAPOSITIVA 9 — t-SNE en acción: dígitos
@@ -1009,6 +1026,15 @@ elif s == 11:
             'o si la estructura global del dataset importa.</div>',
             unsafe_allow_html=True,
         )
+        st.markdown("#### 📐 Fórmulas esenciales")
+        st.markdown(r"""
+| | Fórmula | Significado |
+|--|---------|-------------|
+| Peso grafo | $w_{ij}=\exp(-(d_{ij}-\rho_i)/\sigma_i)$ | Fuerza de conexión; $\rho_i$ normaliza escala local |
+| Simetría | $\bar{w}_{ij}=w_{ij}+w_{ji}-w_{ij}w_{ji}$ | Convierte grafo dirigido en no dirigido |
+| Baja dim. | $q_{ij}=(1+a\|y_i-y_j\|^{2b})^{-1}$ | Similitud en embedding; $a,b$ controlados por `min_dist` |
+| Coste | $\mathcal{L}=\sum w_{ij}\log\frac{w_{ij}}{q_{ij}}+(1-w_{ij})\log\frac{1-w_{ij}}{1-q_{ij}}$ | Entropía cruzada binaria — más rápida que KL |
+""")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DIAPOSITIVA 12 — Tabla de decisión comparativa

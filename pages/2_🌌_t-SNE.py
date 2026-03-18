@@ -122,6 +122,17 @@ para que esos grupos queden a la vista.
             'si son parecidos entre sí. Sólo la distancia <em>dentro</em> de un cluster tiene sentido.'
             '</div>', unsafe_allow_html=True)
 
+        st.markdown("### 📐 Fórmulas clave (t-SNE)")
+        st.markdown(r"""
+| Fórmula | Qué calcula | En palabras |
+|---------|-------------|-------------|
+| $p_{j\|i} = \dfrac{\exp(-\|x_i-x_j\|^2/2\sigma_i^2)}{\sum_{k\neq i}\exp(-\|x_i-x_k\|^2/2\sigma_i^2)}$ | Similitud en alta dimensión | Prob. de que $x_j$ sea vecino de $x_i$. Gauss centrada en cada punto; $\sigma_i$ lo fija la **perplejidad**. |
+| $q_{ij} = \dfrac{(1+\|y_i-y_j\|^2)^{-1}}{\sum_{k\neq l}(1+\|y_k-y_l\|^2)^{-1}}$ | Similitud en 2D | Lo mismo pero en el espacio reducido. Usa **distribución t** (colas gruesas → clusters más separados). |
+| $\mathcal{L} = \sum_{i,j} p_{ij}\log\dfrac{p_{ij}}{q_{ij}}$ | Coste (KL divergence) | Mide diferencia entre las dos distribuciones. t-SNE minimiza esto moviendo los puntos en 2D. |
+
+> 💡 La distribución **t de Student** en 2D (en lugar de Gauss) es el truco que da a t-SNE sus clusters tan nítidos: sus colas gruesas "empujan" los clusters más lejos entre sí.
+""")
+
         st.markdown(
             '<div class="callout-red">🚫 <strong>No uses t-SNE para:</strong> '
             'reducción previa al entrenamiento de un modelo ML, ni para datasets '

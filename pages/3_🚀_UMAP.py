@@ -123,6 +123,18 @@ y usa matemáticas de grafos y topología para "aplanar" esa superficie.
             'dentro del espacio de alta dimensión y lo "desenrolla".'
             '</div>', unsafe_allow_html=True)
 
+        st.markdown("### 📐 Fórmulas clave (UMAP)")
+        st.markdown(r"""
+| Fórmula | Qué calcula | En palabras |
+|---------|-------------|-------------|
+| $w(x_i,x_j)=\exp\!\left(-\frac{d(x_i,x_j)-\rho_i}{\sigma_i}\right)$ | Peso del grafo (alta dim.) | Probabilidad de conectar dos puntos. $\rho_i$ = distancia al vecino más cercano (normaliza escala local). |
+| $\bar{w}_{ij} = w_{ij}+w_{ji}-w_{ij}\cdot w_{ji}$ | Simetrización | Convierte el grafo dirigido en no dirigido combinando las dos direcciones. |
+| $q_{ij}=\bigl(1+a\,\|y_i-y_j\|^{2b}\bigr)^{-1}$ | Similitud en baja dim. | Distancia en el embedding; $a$ y $b$ los controla `min_dist`. |
+| $\mathcal{L}=\sum_{(i,j)}\!\left[w_{ij}\log\tfrac{w_{ij}}{q_{ij}}+(1-w_{ij})\log\tfrac{1-w_{ij}}{1-q_{ij}}\right]$ | Coste (entropía cruzada binaria) | UMAP minimiza esto: quiere que el grafo del embedding se parezca al original. |
+
+> 💡 **¿Por qué es más rápido que t-SNE?** Porque trabaja sobre un **grafo disperso** (solo conecta los `n_neighbors` vecinos más cercanos de cada punto), no sobre todas las parejas posibles. Para 10.000 puntos t-SNE calcula 100 millones de similitudes; UMAP calcula solo ~150.000.
+""")
+
     with col_plot:
         st.markdown("### 🌐 Visualizando un manifold en 3D")
         st.markdown(

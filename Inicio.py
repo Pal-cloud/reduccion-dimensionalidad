@@ -882,6 +882,44 @@ st.divider()
 st.markdown('<p class="section-label">Referencia rápida</p>', unsafe_allow_html=True)
 st.markdown("## Tabla comparativa de algoritmos")
 
+# ── Fórmulas matemáticas ──────────────────────────────────────────────────
+with st.expander("📐 Fórmulas clave de los tres algoritmos (haz clic para ver)", expanded=False):
+    col_f1, col_f2, col_f3 = st.columns(3, gap="large")
+
+    with col_f1:
+        st.markdown("#### 🧩 PCA")
+        st.markdown(r"""
+| Fórmula | Qué hace |
+|---------|----------|
+| $\mathbf{C}=\frac{1}{n-1}\mathbf{X}^\top\mathbf{X}$ | Matriz de covarianza — mide correlación entre variables |
+| $\mathbf{C}\mathbf{v}=\lambda\mathbf{v}$ | Eigenvectores: $\mathbf{v}$ = dirección, $\lambda$ = varianza capturada |
+| $\mathbf{Z}=\mathbf{X}\mathbf{W}_k$ | Proyección: $k$ dimensiones de salida |
+| $\frac{\lambda_i}{\sum\lambda_j}$ | % de información conservada por componente $i$ |
+""")
+
+    with col_f2:
+        st.markdown("#### 🌌 t-SNE")
+        st.markdown(r"""
+| Fórmula | Qué hace |
+|---------|----------|
+| $p_{j\|i}\propto\exp(-\|x_i-x_j\|^2/2\sigma_i^2)$ | Similitud Gaussiana en alta dim.; $\sigma_i$ lo fija la **perplejidad** |
+| $q_{ij}\propto(1+\|y_i-y_j\|^2)^{-1}$ | Similitud con **t de Student** en 2D (colas gruesas → clusters separados) |
+| $\mathcal{L}=\text{KL}(P\|Q)$ | Minimiza diferencia entre distribuciones de alta y baja dimensión |
+""")
+
+    with col_f3:
+        st.markdown("#### 🚀 UMAP")
+        st.markdown(r"""
+| Fórmula | Qué hace |
+|---------|----------|
+| $w_{ij}=\exp(-(d_{ij}-\rho_i)/\sigma_i)$ | Peso del grafo; $\rho_i$ normaliza la escala local |
+| $\bar{w}_{ij}=w_{ij}+w_{ji}-w_{ij}w_{ji}$ | Simetriza el grafo dirigido |
+| $q_{ij}=(1+a\|y_i-y_j\|^{2b})^{-1}$ | Similitud en embedding; $a,b$ controlados por `min_dist` |
+| $\mathcal{L}=\sum w_{ij}\log\frac{w_{ij}}{q_{ij}}+(1-w_{ij})\log\frac{1-w_{ij}}{1-q_{ij}}$ | Entropía cruzada binaria — más rápida que KL |
+""")
+
+
+
 df_ref = pd.DataFrame({
     "Característica": [
         "Tipo", "Velocidad", "Preserva estructura global",

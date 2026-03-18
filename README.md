@@ -128,6 +128,17 @@ Imagina una nube de puntos en 3D (como un enjambre de abejas en el aire). PCA bu
                1000 dimensiones → 2 componentes (conservando 90% de info)
 ```
 
+**📐 Fórmulas clave (PCA)**
+
+| Fórmula | Qué calcula | En palabras |
+|---------|-------------|-------------|
+| $\mathbf{C} = \frac{1}{n-1} \mathbf{X}^\top \mathbf{X}$ | **Matriz de covarianza** | Mide cómo varían juntas dos variables. Si $C_{ij}$ es grande → esas dos variables están correlacionadas. |
+| $\mathbf{C}\,\mathbf{v} = \lambda\,\mathbf{v}$ | **Ecuación de eigenvectores** | $\mathbf{v}$ es la dirección de máxima varianza (componente principal); $\lambda$ es cuánta varianza captura esa dirección. |
+| $\mathbf{Z} = \mathbf{X}\,\mathbf{W}_k$ | **Proyección** | Multiplica los datos originales $\mathbf{X}$ por las $k$ componentes elegidas $\mathbf{W}_k$ → datos comprimidos $\mathbf{Z}$ en $k$ dimensiones. |
+| $\text{Varianza explicada}_i = \dfrac{\lambda_i}{\sum_j \lambda_j}$ | **% de información conservada** | Si $\lambda_1 = 44\%$, la primera componente conserva el 44 % de toda la información del dataset. |
+
+> 💡 **Resumen:** PCA resuelve un problema de álgebra lineal (descomposición espectral de la covarianza). No necesitas saber calcularlo a mano — scikit-learn lo hace en una línea — pero entender qué significa $\lambda$ te ayuda a interpretar el scree plot.
+
 **¿Cuándo usarlo?**
 - ✅ Antes de entrenar un modelo ML para acelerar el entrenamiento
 - ✅ Para eliminar variables redundantes o correlacionadas
@@ -176,6 +187,16 @@ Perplejidad alta (80-100): → Cada punto tiene una visión más amplia
 ```
 
 > ⚠️ **Trampa frecuente:** Las distancias *entre* clusters en t-SNE **no son interpretables**. Que dos grupos estén cerca o lejos en el mapa 2D no significa que sean parecidos entre sí. Sólo la distancia *dentro* de un cluster tiene significado.
+
+**📐 Fórmulas clave (t-SNE)**
+
+| Fórmula | Qué calcula | En palabras |
+|---------|-------------|-------------|
+| $p_{j\|i} = \dfrac{\exp(-\|x_i - x_j\|^2 / 2\sigma_i^2)}{\sum_{k \neq i} \exp(-\|x_i - x_k\|^2 / 2\sigma_i^2)}$ | **Similitud en alta dimensión** | Probabilidad de que $x_j$ sea vecino de $x_i$. Usa una Gaussiana: cuanto más cerca, mayor probabilidad. $\sigma_i$ lo fija la **perplejidad**. |
+| $q_{ij} = \dfrac{(1 + \|y_i - y_j\|^2)^{-1}}{\sum_{k \neq l}(1 + \|y_k - y_l\|^2)^{-1}}$ | **Similitud en 2D** | Misma idea pero en el espacio reducido, usando una distribución **t de Student** (colas más gruesas → clusters más separados). |
+| $\mathcal{L} = \text{KL}(P \| Q) = \sum_{i,j} p_{ij} \log \dfrac{p_{ij}}{q_{ij}}$ | **Función de coste (KL divergence)** | Mide qué tan distintas son las distribuciones $P$ (alta dimensión) y $Q$ (2D). t-SNE minimiza esta diferencia moviendo los puntos en 2D. |
+
+> 💡 **Resumen:** t-SNE ajusta iterativamente las posiciones en 2D para que las probabilidades de vecindad coincidan con las del espacio original. La distribución t de Student en 2D "empuja" los clusters más separados que una Gaussiana — de ahí los clústeres tan nítidos.
 
 **¿Cuándo usarlo?**
 - ✅ Exploración visual de datos: ¿hay grupos naturales?
@@ -226,6 +247,17 @@ min_dist (distancia mínima en el mapa):
 - ✅ Cuando necesitas un pipeline ML que procese datos nuevos
 - ✅ Para preservar tanto estructura local como global
 - ✅ Bioinformática, NLP, visión por computador
+
+**📐 Fórmulas clave (UMAP)**
+
+| Fórmula | Qué calcula | En palabras |
+|---------|-------------|-------------|
+| $w(x_i, x_j) = \exp\!\left(-\dfrac{d(x_i,x_j) - \rho_i}{\sigma_i}\right)$ | **Peso del grafo en alta dimensión** | Probabilidad de conectar dos puntos en el grafo. $\rho_i$ = distancia al vecino más cercano de $i$ (normaliza escala local); $\sigma_i$ lo fija `n_neighbors`. |
+| $\bar{w}(x_i,x_j) = w_{ij} + w_{ji} - w_{ij}\cdot w_{ji}$ | **Simetrización** | Combina las direcciones $i→j$ y $j→i$ del grafo para que sea no dirigido. |
+| $q(y_i, y_j) = \left(1 + a\,\|y_i - y_j\|^{2b}\right)^{-1}$ | **Similitud en baja dimensión** | Versión continua de la distancia en el embedding. Los parámetros $a, b$ los controla `min_dist`. |
+| $\mathcal{L} = \sum_{(i,j)} \left[ w_{ij} \log \dfrac{w_{ij}}{q_{ij}} + (1-w_{ij})\log\dfrac{1-w_{ij}}{1-q_{ij}} \right]$ | **Entropía cruzada binaria** | UMAP minimiza esta función: quiere que los pesos del grafo original y del embedding sean lo más parecidos posible. |
+
+> 💡 **Resumen:** UMAP construye un grafo ponderado en el espacio original (quién es vecino de quién y con qué fuerza) y luego optimiza el layout 2D para que ese grafo se preserve. Al contrario que t-SNE, usa entropía cruzada binaria en lugar de KL divergence, lo que lo hace mucho más rápido y preserva mejor la estructura global.
 
 ---
 
