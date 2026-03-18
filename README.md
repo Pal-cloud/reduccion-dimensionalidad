@@ -11,7 +11,31 @@
 [![Plotly](https://img.shields.io/badge/Plotly-5.20%2B-3F4F75?logo=plotly&logoColor=white)](https://plotly.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E.svg)](LICENSE)
 
+### 🌐 [**Try the live app →**](https://reduccion-dimensionalidad.streamlit.app/)
+
 </div>
+
+---
+
+## 🚀 Live Demo
+
+> **The app is publicly deployed on Streamlit Community Cloud — no installation needed:**
+>
+> ### **[https://reduccion-dimensionalidad.streamlit.app/](https://reduccion-dimensionalidad.streamlit.app/)**
+
+---
+
+## ✨ What's New — v2.0
+
+| | Feature | Description |
+|---|---------|-------------|
+| 🎤 | **Presentation Mode** | New page with 8 navigable slides — ideal for classes, talks and live demos. |
+| 🧪 | **Hands-on Exercise** | Full page with 3 guided coding exercises on the Breast Cancer Wisconsin dataset. Code is editable directly in the browser. |
+| ⚡ | **Automatic feedback** | If blanks `___` are left unfilled, the app runs the correct solution automatically and highlights it in green. |
+| ✅ | **Answer panels** | Each exercise step ends with a collapsible box showing the correct answers and explanations. |
+| 🔗 | **Dataset links** | Direct links to the UCI ML Repository and the original paper. |
+| ☁️ | **Streamlit Cloud** | App live at [reduccion-dimensionalidad.streamlit.app](https://reduccion-dimensionalidad.streamlit.app/) — no setup required. |
+| 📦 | **Improved compatibility** | `requirements.txt` updated with `numba` for full Streamlit Cloud support. |
 
 ---
 
@@ -241,6 +265,19 @@ min_dist (distancia mínima en el mapa):
         ├── Visualización 2D y 3D interactiva
         ├── Tabla con los datos reducidos y estadísticas
         └── Glosario expandible de 10 términos clave
+
+├── 🎤  Presentación  ← NEW
+│       ├── Slide-by-slide presentation mode
+│       ├── 8 slides covering key concepts, analogies and comparisons
+│       └── Perfect for classes, talks and live demos
+
+└── 🧪  Ejercicio Práctico  ← NEW
+        ├── 3 guided exercises with editable Python code and ___ blanks
+        ├── Immediate feedback on execution (✅ correct / ❌ error)
+        ├── Blanks left unfilled → correct solution shown automatically in green
+        ├── Charts generated instantly inside the app
+        ├── Answer panel with correct lines after each step
+        └── Official links to the UCI dataset and original paper
 ```
 
 ---
@@ -280,6 +317,8 @@ reduccion-dimensionalidad/
 │   ├── 3_🚀_UMAP.py           ← 3 tabs: teoría · demo interactiva · quiz
 │   ├── 4_⚔️_Comparar.py       ← Los 3 métodos frente a frente
 │   └── 5_🎮_Playground.py     ← Laboratorio libre + glosario
+│   ├── 6_🎤_Presentación.py   ← Presentation mode (slides)          ← NEW
+│   └── 7_🧪_Ejercicio.py      ← Hands-on exercises with editable code  ← NEW
 │
 ├── 📁 utils/
 │   └── helpers.py             ← Carga de datos, PCA, t-SNE, UMAP, gráficos
@@ -333,6 +372,25 @@ pip install --pre umap-learn
 
 ---
 
+## ☁️ Deploy on Streamlit Community Cloud
+
+The app is already live at:
+
+> **[https://reduccion-dimensionalidad.streamlit.app/](https://reduccion-dimensionalidad.streamlit.app/)**
+
+To deploy your own fork:
+
+1. Fork the repository to your GitHub account.
+2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
+3. Click **"New app"** and select your repository.
+4. Set:
+   - **Branch:** `main`
+   - **Main file path:** `Inicio.py`
+5. Click **"Deploy"** — Streamlit will install all dependencies from `requirements.txt` automatically.
+6. Your app will be live at a public URL in 2–3 minutes.
+
+---
+
 ## 🛠️ Tecnologías utilizadas
 
 | Librería | Versión | Para qué se usa |
@@ -343,6 +401,7 @@ pip install --pre umap-learn
 | [Plotly](https://plotly.com/python/) | ≥ 5.20 | Gráficos 2D/3D interactivos |
 | [Pandas](https://pandas.pydata.org) | ≥ 2.2 | Manipulación y presentación de datos |
 | [NumPy](https://numpy.org) | ≥ 1.26 | Operaciones matemáticas vectorizadas |
+| [Numba](https://numba.pydata.org) | ≥ 0.59 | JIT acceleration (required by UMAP on Streamlit Cloud) |
 | [Pillow](https://pillow.readthedocs.io) | ≥ 10.0 | Procesamiento de imágenes |
 
 ---
