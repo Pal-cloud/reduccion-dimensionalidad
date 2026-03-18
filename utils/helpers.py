@@ -198,7 +198,7 @@ def render_watermark(opacity: float = 1.0, size_px: int = 52) -> None:
             padding: 5px 32px 5px 32px;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             gap: 14px;
             z-index: 99999;
             box-shadow: 0 -3px 12px rgba(0,0,0,0.22);
