@@ -28,3 +28,4 @@ _write_*.py
 
 # VS Code
 .vscode/
+nul

@@ -209,8 +209,19 @@ TOTAL = len(SLIDES_META)
 if "slide_idx" not in st.session_state:
     st.session_state.slide_idx = 0
 
-def goto(n):
-    st.session_state.slide_idx = max(0, min(TOTAL - 1, n))
+def _prev():
+    st.session_state.slide_idx = max(0, st.session_state.slide_idx - 1)
+
+def _next():
+    st.session_state.slide_idx = min(TOTAL - 1, st.session_state.slide_idx + 1)
+
+def _slider_change():
+    st.session_state.slide_idx = st.session_state._slider_val - 1
+
+def _cap_go():
+    cap_sel = st.session_state.cap_jump
+    first = next(i for i, m in enumerate(SLIDES_META) if m[0] == cap_sel)
+    st.session_state.slide_idx = first
 
 # ── Header de control ────────────────────────────────────────────────────────
 hdr_left, hdr_mid, hdr_right = st.columns([1, 2, 1])
@@ -220,23 +231,19 @@ with hdr_left:
     st.caption("Reducción de Dimensionalidad")
 
 with hdr_mid:
-    idx_input = st.slider(
+    st.slider(
         "Diapositiva", 1, TOTAL,
         value=st.session_state.slide_idx + 1,
-        key="slide_slider",
+        key="_slider_val",
         label_visibility="collapsed",
+        on_change=_slider_change,
     )
-    if idx_input - 1 != st.session_state.slide_idx:
-        goto(idx_input - 1)
 
 with hdr_right:
-    # Saltar a un capítulo
     capitulos = list(dict.fromkeys(m[0] for m in SLIDES_META))
-    cap_sel = st.selectbox("Ir a capítulo", capitulos, key="cap_jump",
-                           label_visibility="collapsed")
-    if st.button("↩ Ir", key="cap_go"):
-        first = next(i for i, m in enumerate(SLIDES_META) if m[0] == cap_sel)
-        goto(first)
+    st.selectbox("Ir a capítulo", capitulos, key="cap_jump",
+                 label_visibility="collapsed")
+    st.button("↩ Ir", key="cap_go", on_click=_cap_go)
 
 # ── Barra de progreso ────────────────────────────────────────────────────────
 pct = (st.session_state.slide_idx + 1) / TOTAL * 100
@@ -248,10 +255,11 @@ st.markdown(
 # ── Botones de navegación (arriba) ───────────────────────────────────────────
 nav_prev, nav_info, nav_next = st.columns([1, 3, 1])
 with nav_prev:
-    if st.button("◀ Anterior", disabled=(st.session_state.slide_idx == 0),
-                 use_container_width=True):
-        goto(st.session_state.slide_idx - 1)
-        st.rerun()
+    st.button("◀ Anterior",
+              disabled=(st.session_state.slide_idx == 0),
+              use_container_width=True,
+              on_click=_prev,
+              key="btn_prev")
 with nav_info:
     cap, tit, col = SLIDES_META[st.session_state.slide_idx]
     st.markdown(
@@ -262,10 +270,12 @@ with nav_info:
         unsafe_allow_html=True,
     )
 with nav_next:
-    if st.button("Siguiente ▶", disabled=(st.session_state.slide_idx == TOTAL - 1),
-                 use_container_width=True, type="primary"):
-        goto(st.session_state.slide_idx + 1)
-        st.rerun()
+    st.button("Siguiente ▶",
+              disabled=(st.session_state.slide_idx == TOTAL - 1),
+              use_container_width=True,
+              type="primary",
+              on_click=_next,
+              key="btn_next")
 
 st.markdown("")
 
@@ -942,7 +952,7 @@ elif s == 11:
             f'<div class="slide-body">'
             f'<div class="slide-quote" style="border-left-color:#FF6B6B;color:#FCA5A5">'
             f'"UMAP construye un grafo de vecindario en alta dimensión y '
-            f'luego lo 'dibuja' en 2D manteniendo tanto los grupos locales '
+            f'luego lo \u201cdibuja\u201d en 2D manteniendo tanto los grupos locales '
             f'como la estructura general del dataset."'
             f'</div>'
             f'<strong>Dos parámetros principales:</strong><br><br>'
@@ -1254,11 +1264,10 @@ elif s == 14:
 st.markdown("")
 bot_prev, bot_info, bot_next = st.columns([1, 3, 1])
 with bot_prev:
-    if st.button("◀ Anterior", key="bot_prev",
-                 disabled=(st.session_state.slide_idx == 0),
-                 use_container_width=True):
-        goto(st.session_state.slide_idx - 1)
-        st.rerun()
+    st.button("◀ Anterior", key="bot_prev",
+              disabled=(st.session_state.slide_idx == 0),
+              use_container_width=True,
+              on_click=_prev)
 with bot_info:
     st.markdown(
         f"<p class='nav-hint'>"
@@ -1269,8 +1278,7 @@ with bot_info:
         unsafe_allow_html=True,
     )
 with bot_next:
-    if st.button("Siguiente ▶", key="bot_next",
-                 disabled=(st.session_state.slide_idx == TOTAL - 1),
-                 use_container_width=True, type="primary"):
-        goto(st.session_state.slide_idx + 1)
-        st.rerun()
+    st.button("Siguiente ▶", key="bot_next",
+              disabled=(st.session_state.slide_idx == TOTAL - 1),
+              use_container_width=True, type="primary",
+              on_click=_next)
