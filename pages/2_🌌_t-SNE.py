@@ -7,9 +7,10 @@ import streamlit as st
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils.helpers import load_dataset, apply_tsne, scatter_2d
+from utils.helpers import load_dataset, apply_tsne, scatter_2d, render_watermark
 
 st.set_page_config(page_title="t-SNE", page_icon="🌌", layout="wide")
+render_watermark()
 
 st.markdown("""
 <style>

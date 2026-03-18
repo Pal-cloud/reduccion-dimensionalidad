@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from utils.helpers import render_watermark
 
 st.set_page_config(
     page_title="Modo Presentación",
@@ -18,6 +19,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+render_watermark()
 
 # ── CSS ─────────────────────────────────────────────────────────────────────
 st.markdown("""

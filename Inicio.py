@@ -1,4 +1,5 @@
 """Página de inicio — Guía interactiva de reducción de dimensionalidad en español."""
+import sys, os
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -8,12 +9,16 @@ from sklearn.decomposition import PCA
 from sklearn.datasets import load_iris, load_wine, load_digits
 from sklearn.preprocessing import StandardScaler
 
+sys.path.append(os.path.dirname(__file__))
+from utils.helpers import render_watermark
+
 st.set_page_config(
     page_title="Reducción de Dimensionalidad — Guía Interactiva",
     page_icon="🔭",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+render_watermark()
 
 # ── CSS ────────────────────────────────────────────────────────────────────────
 st.markdown("""

@@ -7,6 +7,8 @@ from sklearn.manifold import TSNE
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import base64
+import os
 
 
 # ── Paleta de colores consistente ─────────────────────────────────────────────
@@ -140,3 +142,47 @@ def scatter_3d(X_3d: np.ndarray, labels: np.ndarray, title: str) -> go.Figure:
     fig.update_traces(marker=dict(size=5, opacity=0.8))
     fig.update_layout(margin=dict(l=0, r=0, t=50, b=0))
     return fig
+
+
+def _logo_base64() -> str:
+    """Devuelve el logo personal codificado en base64 para embeber en HTML."""
+    logo_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "assets", "images", "logo-pal.png",
+    )
+    if not os.path.exists(logo_path):
+        return ""
+    with open(logo_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
+def render_watermark(opacity: float = 0.55, size_px: int = 72) -> None:
+    """Inyecta el logo personal como marca de agua fija en la esquina inferior derecha.
+
+    Llama esta función UNA vez por página, justo después de st.set_page_config().
+    """
+    b64 = _logo_base64()
+    if not b64:
+        return
+    st.markdown(
+        f"""
+        <style>
+        .watermark-logo {{
+            position: fixed;
+            bottom: 18px;
+            right: 22px;
+            width: {size_px}px;
+            opacity: {opacity};
+            z-index: 9999;
+            pointer-events: none;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
+            transition: opacity .3s;
+        }}
+        .watermark-logo:hover {{ opacity: {min(opacity + 0.25, 1.0)}; }}
+        </style>
+        <img class="watermark-logo"
+             src="data:image/png;base64,{b64}"
+             alt="Logo personal" />
+        """,
+        unsafe_allow_html=True,
+    )

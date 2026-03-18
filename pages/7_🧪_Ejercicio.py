@@ -1,4 +1,5 @@
 """Ejercicio práctico guiado con código — Dataset Breast Cancer Wisconsin."""
+import sys, os
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -13,12 +14,16 @@ import io
 import contextlib
 import re as _re
 
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from utils.helpers import render_watermark
+
 st.set_page_config(
     page_title="Ejercicio Práctico — Breast Cancer",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+render_watermark()
 
 # ── CSS ────────────────────────────────────────────────────────────────────────
 st.markdown("""
