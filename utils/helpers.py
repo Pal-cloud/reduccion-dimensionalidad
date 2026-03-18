@@ -183,54 +183,72 @@ def render_watermark(opacity: float = 1.0, size_px: int = 52) -> None:
     st.markdown(
         f"""
         <style>
-        /* ── Footer con logo ───────────────────────────────────────────── */
+        /* ── Oculta el footer nativo de Streamlit ──────────────────────── */
+        footer {{ visibility: hidden; }}
+
+        /* ── Footer personalizado ──────────────────────────────────────── */
         .site-footer {{
             position: fixed;
             bottom: 0;
             left: 0;
-            width: 100%;
+            right: 0;
+            width: 100vw;
             background: #e8eef1;
-            border-top: 1px solid #c8d6dc;
-            padding: 6px 24px;
+            border-top: 2px solid #b0c4cc;
+            padding: 5px 32px 5px 32px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 10px;
-            z-index: 9999;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.18);
+            gap: 14px;
+            z-index: 99999;
+            box-shadow: 0 -3px 12px rgba(0,0,0,0.22);
+            box-sizing: border-box;
         }}
         .site-footer img {{
             width: {size_px}px;
             height: auto;
             opacity: {opacity};
             display: block;
-            /* sin filtro: colores originales del logo */
+            flex-shrink: 0;
         }}
         .site-footer .footer-text {{
-            font-size: .75rem;
-            color: #3a4a50;
+            font-size: .78rem;
+            font-weight: 600;
+            color: #2c3e50;
             font-family: 'Inter', sans-serif;
             letter-spacing: .03em;
+            white-space: nowrap;
+        }}
+        .site-footer .footer-sep {{
+            color: #a0b0b8;
+            font-size: .85rem;
         }}
         .site-footer .footer-link {{
-            font-size: .75rem;
+            font-size: .78rem;
             color: #1a5276;
             font-family: 'Inter', sans-serif;
             text-decoration: none;
             letter-spacing: .03em;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }}
         .site-footer .footer-link:hover {{
+            color: #6C63FF;
             text-decoration: underline;
         }}
-        /* Empuja el contenido principal para que no quede tapado por el footer */
+        /* Evita que el contenido principal quede tapado por el footer */
         .main .block-container {{
-            padding-bottom: 70px !important;
+            padding-bottom: 80px !important;
         }}
         </style>
         <div class="site-footer">
             <img src="data:image/png;base64,{b64}" alt="Logo personal" />
             <span class="footer-text">© 2026 Paloma Gómez</span>
+            <span class="footer-sep">|</span>
             <a class="footer-link" href="https://www.linkedin.com/in/palomagsal" target="_blank" rel="noopener">&#128279; LinkedIn</a>
+            <span class="footer-sep">|</span>
             <a class="footer-link" href="https://github.com/Pal-cloud" target="_blank" rel="noopener">&#128025; GitHub</a>
         </div>
         """,
