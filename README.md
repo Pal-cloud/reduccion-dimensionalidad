@@ -383,12 +383,6 @@ pip install --pre umap-learn
 
 ---
 
-## 📝 Licencia
-
-Este proyecto está bajo la licencia **MIT**. Puedes usarlo, modificarlo y distribuirlo libremente, tanto para uso personal como comercial. Ver [`LICENSE`](LICENSE) para más detalles.
-
----
-
 <div align="center">
 
 **¿Te ha resultado útil? ¡Dale una ⭐ al repositorio!**
