@@ -189,10 +189,13 @@ def render_watermark(opacity: float = 0.55, size_px: int = 72) -> None:
             opacity: {opacity};
             z-index: 9999;
             pointer-events: none;
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
-            transition: opacity .3s;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(255,255,255,0.25));
+            transition: opacity .3s, filter .3s;
         }}
-        .watermark-logo:hover {{ opacity: {min(opacity + 0.25, 1.0)}; }}
+        .watermark-logo:hover {{
+            opacity: {min(opacity + 0.3, 1.0)};
+            filter: brightness(0) invert(1) drop-shadow(0 2px 14px rgba(255,255,255,0.55));
+        }}
         </style>
         <img class="watermark-logo"
              src="data:image/png;base64,{b64}"
