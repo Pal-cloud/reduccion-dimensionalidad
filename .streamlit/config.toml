@@ -4,3 +4,6 @@ backgroundColor = "#0E1117"
 secondaryBackgroundColor = "#1E1E2E"
 textColor = "#FAFAFA"
 font = "sans serif"
+
+[server]
+# Fuerza redespliegue en Streamlit Cloud — footer actualizado 2026-03-18

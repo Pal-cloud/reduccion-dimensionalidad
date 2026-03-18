@@ -230,12 +230,8 @@ def render_watermark(opacity: float = 1.0, size_px: int = 52) -> None:
         <div class="site-footer">
             <img src="data:image/png;base64,{b64}" alt="Logo personal" />
             <span class="footer-text">© 2026 Paloma Gómez</span>
-            <a class="footer-link" href="https://www.linkedin.com/in/palomagsal" target="_blank" rel="noopener">
-                🔗 LinkedIn
-            </a>
-            <a class="footer-link" href="https://github.com/Pal-cloud" target="_blank" rel="noopener">
-                🐙 GitHub
-            </a>
+            <a class="footer-link" href="https://www.linkedin.com/in/palomagsal" target="_blank" rel="noopener">&#128279; LinkedIn</a>
+            <a class="footer-link" href="https://github.com/Pal-cloud" target="_blank" rel="noopener">&#128025; GitHub</a>
         </div>
         """,
         unsafe_allow_html=True,
